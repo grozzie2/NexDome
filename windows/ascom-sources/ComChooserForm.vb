@@ -1,3 +1,29 @@
+'tabs=4
+' --------------------------------------------------------------------------------
+'
+' ASCOM Dome driver for NexDome
+'
+' Description:	
+'
+' Implements:	ASCOM Dome interface version: 2.0
+' Author:		  Gerry Rozema <gerryr@rozeware.com>
+'
+'    This package includes the drivers and sources for the NexDome
+'    Copyright (C) 2016 Rozeware Development Ltd.
+
+'    NexDome is free software: you can redistribute it and/or modify
+'    it under the terms of the GNU General Public License as published by
+'    the Free Software Foundation, either version 2 of the License, or
+'    (at your option) any later version.
+'
+'    NexDome is distributed in the hope that it will be useful,
+'    but WITHOUT ANY WARRANTY; without even the implied warranty of
+'    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+'    GNU General Public License for more details.
+'
+'    You should have received a copy of the GNU General Public License
+'    along with NexDome files.  If not, see <http://www.gnu.org/licenses/>.
+'
 Imports System.Windows.Forms
 Imports System.Runtime.InteropServices
 Imports ASCOM.Utilities

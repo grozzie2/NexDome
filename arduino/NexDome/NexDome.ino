@@ -1,25 +1,30 @@
 
 /*
- *    Firmware for the arduino leonardo in the NexDome rotation controller
- *    Hardware is the leonardo clone, with an xbee series 1 module
+ *  This package includes the drivers and sources for the NexDome
+ *  Copyright (C) 2016 Rozeware Development Ltd.
+ *
+ *  NexDome is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  NexDome is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with NexDome files.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ *   This file contains:-
+ *   Firmware for the arduino leonardo in the NexDome rotation controller
+ *   Hardware is the leonardo clone, with an xbee series 1 module
+ *   and a TB6600 based stepper motor driver
  */
 
 //  Libraries we need to include
 #include <AccelStepper.h>
 #include <EEPROM.h>
-
-#ifdef ARDUINO_AVR_LEONARDO
-  //  if running on the leonardo board we dont need software serial
-  //  as it has the hardware serial port, and the usb connection
-  //  so xbee is hooked up to the hardware and off we go
-#else
-  //  if running on an arduino with only one serial port
-  //  we need software serial for the xbee link
-  //  AltSoftSerial has much higher performance than
-  //  Software Serial, so use that one, but remember
-  //  The xbee must be wired to pin 8/9 for this
-  #include <AltSoftSerial.h>
-#endif
 
 #define VERSION_MAJOR 0
 #define VERSION_MINOR 10
@@ -35,8 +40,8 @@
  *   5 - Button
  *   6 - Button
  *   7 -
- *   8 - Soft serial
- *   9 - Soft serial
+ *   8 - Reserved for AltSoftSerial if not on leonardo
+ *   9 - Soft serial for AltSoftSerial if not on Leonardo
  *   10- Motor Enable
  *   11- Motor Dir
  *   12- Motor Step
@@ -100,15 +105,6 @@
 
 //  For reading our input voltage 
 #define VPIN A0
-
-//  Serial1 is not available on the uno
-#ifdef ARDUINO_AVR_LEONARDO
-#else
-//SoftwareSerial Serial1(SERIAL_RX,SERIAL_TX); // RX, TX
-AltSoftSerial Serial1;
-
-#endif
-
 
 //  if we define our serial ports this way, then re-compiling for different port assignments
 //  on different processors, becomes easy and we dont have to hunt all over chaning

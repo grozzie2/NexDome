@@ -1,16 +1,28 @@
 /*  
+ *  This package includes the drivers and sources for the NexDome
+ *  Copyright (C) 2016 Rozeware Development Ltd.
+ *
+ *  NexDome is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  NexDome is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with NexDome files.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ *   This file conatins:-
  *   Firmware for the aruduino in the NexDome shutter controller
  *   Hardware is the leonardo clone with an xbee series 1 module
+ *   and a TB6600 based stepper motor driver
  */
  
 //  Libraries we need to include
 #include <AccelStepper.h>
-#ifdef ARDUINO_AVR_LEONARDO
-#else
-// if running on an arduino with only one serial port
-//  we need software serial for the xbee link
-#include <SoftwareSerial.h>
-#endif
 
 #define VERSION_MAJOR 0
 #define VERSION_MINOR 10
@@ -19,8 +31,12 @@
 /*
  * Allow for bench testing without magnetic sensors
  * giving absolute position for open and closed
+ * when this is defined, the firmware will assume the
+ * limit switches are active at the correct spots, this
+ * allows for bench testing drivers without physical hardware
+ * set up
  */
-#define BENCH_TEST 1
+//#define BENCH_TEST 1
 
 /*
  *   Defining which pins for serial gets tricky
@@ -53,11 +69,6 @@
 //  For reading our input voltage 
 #define VPIN A0
 
-
-//  Serial1 is not available on the uno
-//#ifndef ARDUINO_AVR_LEONARDO
-//  SoftwareSerial Serial1(SERIAL_RX,SERIAL_TX); // RX, TX
-//#endif
 
 //  if we define our serial ports this way, then re-compiling for different port assignments
 //  on different processors, becomes easy and we dont have to hunt all over chaning

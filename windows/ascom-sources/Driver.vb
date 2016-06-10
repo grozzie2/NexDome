@@ -1,23 +1,34 @@
 'tabs=4
 ' --------------------------------------------------------------------------------
-' TODO fill in this information for your driver, then remove this line!
 '
 ' ASCOM Dome driver for NexDome
 '
-' Description:	Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam 
-'				nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam 
-'				erat, sed diam voluptua. At vero eos et accusam et justo duo 
-'				dolores et ea rebum. Stet clita kasd gubergren, no sea takimata 
-'				sanctus est Lorem ipsum dolor sit amet.
+' Description:	
 '
-' Implements:	ASCOM Dome interface version: 1.0
-' Author:		(XXX) Your N. Here <your@email.here>
+' Implements:	ASCOM Dome interface version: 2.0
+' Author:		  Gerry Rozema <gerryr@rozeware.com>
+'
+'    This package includes the drivers and sources for the NexDome
+'    Copyright (C) 2016 Rozeware Development Ltd.
+
+'    NexDome is free software: you can redistribute it and/or modify
+'    it under the terms of the GNU General Public License as published by
+'    the Free Software Foundation, either version 2 of the License, or
+'    (at your option) any later version.
+'
+'    NexDome is distributed in the hope that it will be useful,
+'    but WITHOUT ANY WARRANTY; without even the implied warranty of
+'    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+'    GNU General Public License for more details.
+'
+'    You should have received a copy of the GNU General Public License
+'    along with NexDome files.  If not, see <http://www.gnu.org/licenses/>.
 '
 ' Edit Log:
 '
 ' Date			Who	Vers	Description
 ' -----------	---	-----	-------------------------------------------------------
-' dd-mmm-yyyy	XXX	1.0.0	Initial edit, from Dome template
+' 10-06-2016	gerry	0.1.0	Initial edit, from Dome template
 ' ---------------------------------------------------------------------------------
 '
 '
