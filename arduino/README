@@ -22,8 +22,15 @@ Firmware for these controllers was developed using arduino tools
 based on Arduino 1.6.5, and makes extensive use of the AccelStepper
 library.
 
+If not already installed, the AccelStepper library is available here:-
+
+http://www.airspayce.com/mikem/arduino/AccelStepper/
+
+Download the zip version of the library there an import into the libraries
+of your Arduino tools installation.
+
 The hardware in use is an Arduino Leonardo clone with an xbee socket
-already on board.
+already on the board.
 
 Refer to the individual firmware files for pin connections.
 
