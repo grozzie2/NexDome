@@ -23,8 +23,8 @@
 '
 '    You should have received a copy of the GNU General Public License
 '    along with NexDome files.  If not, see <http://www.gnu.org/licenses/>.
-'
-﻿Public Class SetupForm
+
+Public Class SetupForm
 
     Private WithEvents myTimer As New System.Windows.Forms.Timer()
     Private CalCounter As Integer = 0

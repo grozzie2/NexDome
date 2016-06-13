@@ -159,9 +159,6 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="ASCOM.png" />
-    <Content Include="Readme.htm">
-      <SubType>Designer</SubType>
-    </Content>
     <None Include="README" />
   </ItemGroup>
   <ItemGroup>
