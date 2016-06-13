@@ -1,5 +1,7 @@
 
 
+    NexDome
+
     This package includes the drivers and sources for the NexDome
     Copyright (C) 2016 Rozeware Development Ltd.
 
@@ -15,3 +17,4 @@
 
     You should have received a copy of the GNU General Public License
     along with NexDome files.  If not, see <http://www.gnu.org/licenses/>.
+
