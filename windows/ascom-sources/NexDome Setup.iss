@@ -22,7 +22,7 @@ Compression=lzma
 SolidCompression=yes
 ; Put there by Platform if Driver Installer Support selected
 WizardImageFile="C:\Program Files (x86)\ASCOM\Platform 6 Developer Components\Installer Generator\Resources\WizardImage.bmp"
-LicenseFile="C:\Program Files (x86)\ASCOM\Platform 6 Developer Components\Installer Generator\Resources\CreativeCommons.txt"
+LicenseFile="C:\users\gerry\NexDome\LICENSE"
 ; {cf}\ASCOM\Uninstall\Dome folder created by Platform, always
 UninstallFilesDir="{cf}\ASCOM\Uninstall\Dome\NexDome"
 
@@ -40,7 +40,7 @@ Name: source; Description: Install the Source files; Flags: unchecked
 [Files]
 Source: "C:\Users\gerry\NexDome\windows\ascom-sources\bin\Release\ASCOM.NexDome.Dome.dll"; DestDir: "{app}"
 ; Require a read-me HTML to appear after installation, maybe driver's Help doc
-Source: "C:\Users\gerry\NexDome\windows\ascom-sources\README.txt"; DestDir: "{app}"; Flags: isreadme
+Source: "C:\Users\gerry\NexDome\README.txt"; DestDir: "{app}"; Flags: isreadme
 ; Optional source files (COM and .NET aware)
 Source: "C:\Users\gerry\NexDome\windows\ascom-sources\*"; Excludes: *.zip,*.exe,*.dll, \bin\*, \obj\*; DestDir: "{app}\Source\NexDome Driver"; Tasks: source; Flags: recursesubdirs
 ; TODO: Add other files needed by your driver here (add subfolders above)
