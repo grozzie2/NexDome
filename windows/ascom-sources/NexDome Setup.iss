@@ -79,11 +79,11 @@ var
 begin
    Result := FALSE;  // Assume failure
    // check that the DriverHelper and Utilities objects exist, report errors if they don't
-   try
-      H := CreateOLEObject('DriverHelper.Util');
-   except
-      MsgBox('The ASCOM DriverHelper object has failed to load, this indicates a serious problem with the ASCOM installation', mbInformation, MB_OK);
-   end;
+   //try
+   //   H := CreateOLEObject('DriverHelper.Util');
+   //except
+   //   MsgBox('The ASCOM DriverHelper object has failed to load, this indicates a serious problem with the ASCOM installation', mbInformation, MB_OK);
+   //end;
    try
       U := CreateOLEObject('ASCOM.Utilities.Util');
    except
