@@ -605,7 +605,9 @@ int CheckButtons()
 }
 
 //  define a buffer and pointers for our serial data state machine
-#define SERIAL_BUFFER_SIZE 20
+// this definition conflicts with arduino headers in later versions
+// we can just run with what they have defined for now
+//#define SERIAL_BUFFER_SIZE 20
 char SerialBuffer[SERIAL_BUFFER_SIZE];
 int SerialPointer=0;
 bool SerialTarget=false;
