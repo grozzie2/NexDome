@@ -25,7 +25,7 @@
 #include <AccelStepper.h>
 
 #define VERSION_MAJOR 0
-#define VERSION_MINOR 10
+#define VERSION_MINOR 11
 
 
 /*
@@ -94,6 +94,10 @@
 //  Set up a default for the communication timeout
 //  for 5 minutes, we get 300000 millis
 unsigned long int ShutterCommunicationTimeout=300000;
+//  This timer is used for the communication loss timer
+//  When we reach the timeout threshold with no communications at all
+//  then the shutter will be closed
+unsigned long int LastCommandTime=0;
 
 int BatteryVolts=0;
 
@@ -114,8 +118,14 @@ class NexShutter
     long int AccelSpeed;
     long int DecelSpeed;
     bool Active;
+    //  direction of current movement
     bool Opening;
     bool Closing;
+    //  Flag for current move to continue
+    //  until a limit switch is detected, irrelavent
+    //  of step counts
+    bool OpeningFull;
+    bool ClosingFull;
     bool isOpen;
     bool isOpenFull;
     bool isClosed;
@@ -141,7 +151,9 @@ NexShutter::NexShutter()
 {
   Active=false;
   Opening=false;
+  OpeningFull=false;
   Closing=false;
+  ClosingFull=false;
   isOpen=false;
   isOpenFull=false;
   isClosed=false;
@@ -152,22 +164,22 @@ void NexShutter::EnableMotor()
 {
   //Computer.print("Enable at ");
   //Computer.println(CurrentPosition());
-#ifdef BIG_EASY
+//#ifdef BIG_EASY
 digitalWrite(EN,LOW);
-#else
-digitalWrite(EN,HIGH);
-#endif  
+//#else
+//digitalWrite(EN,HIGH);
+//#endif  
   delay(100);
   Active=true;  
 }
 
 void NexShutter::DisableMotor()
 {
-#ifdef BIG_EASY
+//#ifdef BIG_EASY
 digitalWrite(EN,HIGH);
-#else
-digitalWrite(EN,LOW);
-#endif  
+//#else
+//digitalWrite(EN,LOW);
+//#endif  
   //Computer.print("Disable at ");
   //Computer.println(CurrentPosition());
   Active=false;
@@ -209,8 +221,14 @@ bool NexShutter::Run()
         pos=accelStepper.currentPosition();
         Computer.println(pos);
         if(HaveDetectedClose) {
+          //  we have detected a closed position
+          //  So this is our step count to full open
           Computer.println("Calibrating Shutter");
           StepsToFullOpen=pos;
+        } else {
+          //  We are full open based on a sensor
+          //  
+          accelStepper.setCurrentPosition(StepsToFullOpen);
         }
       }
     } else {
@@ -224,7 +242,23 @@ bool NexShutter::Run()
     //Computer.println(pos);
     //if(pos==0) isClosed=true;
     //else isOpen=true;
-  } 
+  } else {
+    //  if we are processing a close command, we need to keep going until
+    //  we hit the sensor, but dont keep doing this if we have hit the sensor
+    if((ClosingFull)&&(!isClosed)) {
+      long int pos;
+      pos=accelStepper.currentPosition();
+      MoveTo(pos - 5000);
+    }
+    //  if we are processing a command to fully open, we need to keep going
+    //  until we hit the open sensor, but dont do this if the sensor has been hit
+    if((OpeningFull)&&(!isOpenFull)) {
+      long int pos;
+      pos=accelStepper.currentPosition();
+      MoveTo(pos + 5000);
+    }
+    
+  }
   return r;
 }
 
@@ -241,6 +275,10 @@ void NexShutter::Stop()
 {
   long int current;
   int r;
+
+
+  ClosingFull=false;
+  OpeningFull=false;
   
   if(!Active) return;
   
@@ -302,6 +340,7 @@ void NexShutter::MoveTo(long int t)
     isOpenFull=false;
 #endif
   }
+  isClosed=false;
   accelStepper.moveTo(t);
   
   return;
@@ -309,7 +348,9 @@ void NexShutter::MoveTo(long int t)
 
 void NexShutter::OpenShutter()
 {
+  Computer.println("Enter open shutter");
   Opening=true;
+  OpeningFull=true;
   Closing=false;
   //  We want to make sure we are going far enough to reach the
   //  fully open sensor
@@ -318,10 +359,12 @@ void NexShutter::OpenShutter()
 
 void NexShutter::CloseShutter()
 {
+  Computer.println("Enter close shutter");
   Closing=true;
+  ClosingFull=true;
   Opening=false;
   //  We want to make sure we are going far enough to reach the closed sensor
-  MoveTo(0);
+  MoveTo(-10000);
 }
 
 int NexShutter::getShutterState()
@@ -455,7 +498,8 @@ void OpenInterrupt()
 
 void setup() {
   // put your setup code here, to run once:
-
+  int a;
+  
   // We need the internal pullups on our input pins
   pinMode(OPEN_SWITCH,INPUT_PULLUP);
   pinMode(CLOSED_SWITCH,INPUT_PULLUP);
@@ -471,8 +515,8 @@ void setup() {
   Wireless.begin(9600);
 
 //  Hack to make leonardo wait for serial port connection
-//  while(!Serial) {  
-//  }
+  //while(!Serial) {  
+  //}
   //  give pins a moment to settle
   delay(200);
   //  now read both limit switches
@@ -503,10 +547,32 @@ void setup() {
  
   ConfigureWireless();
 
+  //  test if we are at a limit switch during startup
+  //  to set our full open/close state flags
+  a=digitalRead(OPEN_SWITCH);
+  if(a==0) {
+    Shutter.isOpenFull=true;
+    accelStepper.setCurrentPosition(StepsPerShutterMove);
+    Computer.println("Shutter is open full");
+  }
+  else Shutter.isOpenFull=false;
+  
+  a=digitalRead(CLOSED_SWITCH);
+  if(a==0) {
+    Shutter.isClosed=true;
+    Shutter.HaveDetectedClose=true;
+    Computer.println("Shutter is closed");
+  }
+  else Shutter.isClosed=false;
+
 #ifdef BENCH_TEST
+  // for bench test, we assume it starts up closed
   Shutter.isClosed=true;
 #endif
- 
+
+ //  prime our last command time so our timeouts
+ //  can work
+ LastCommandTime=millis();
 
 }
 
@@ -566,10 +632,6 @@ int WirelessConfigState=0;
 bool MasterAlive=false;
 bool FoundXbee=false;
 
-//  This timer is used for the communication loss timer
-//  When we reach the timeout threshold with no communications at all
-//  then the shutter will be closed
-unsigned long int LastCommandTime=0;
 
 /*
  *   We want to handle commands from both the wireless and the serial port
@@ -592,6 +654,7 @@ bool ProcessCommandBuffer(char *cbuf, Serial_ *responder)
   }
   /* we do want a motion status while moving  */
     if(cbuf[0]=='s') {
+      if(Shutter.Active) Shutter.Run();
       int state=SHUTTER_STATE_UNKNOWN;
       //  for now, just send an unknown state response
       //Computer.println("Sending response to wireless");
@@ -620,11 +683,30 @@ bool ProcessCommandBuffer(char *cbuf, Serial_ *responder)
       if(Shutter.Active) Shutter.Run();
       return true;
     }
+
+  if(cbuf[0]=='p') {
+    if(Shutter.Active) Shutter.Run();
+    dtostrf(Shutter.getShutterPosition(),2,1,buf);
+    if(Shutter.Active) Shutter.Run();
+    responder->write("P ");
+    responder->write(buf,strlen(buf));
+    responder->write("\n",1);
+    return true;
+  }
     
   //  if we are moving the shutter
   //  dont process anything else, it causes
   //  to many jitters on the stepper
   if(Shutter.Active) return true;
+  
+  if(cbuf[0]=='q') {  
+    dtostrf(Shutter.CurrentPosition(),2,1,buf);
+    responder->write("Q ",2);
+    responder->write(buf,strlen(buf));
+    responder->write("\n",1);
+    return true;
+  }
+
   
   /*  restart xbee wireless */
   if(cbuf[0]=='w') {
@@ -642,22 +724,6 @@ bool ProcessCommandBuffer(char *cbuf, Serial_ *responder)
     responder->println("C");
     SerialTarget=true;
     Shutter.CloseShutter();
-    return true;
-  }
-  if(cbuf[0]=='q') {
-    dtostrf(Shutter.CurrentPosition(),2,1,buf);
-    responder->write("Q ",2);
-    responder->write(buf,strlen(buf));
-    responder->write("\n",1);
-    return true;
-  }
-  if(cbuf[0]=='p') {
-    if(Shutter.Active) Shutter.Run();
-    dtostrf(Shutter.getShutterPosition(),2,1,buf);
-    if(Shutter.Active) Shutter.Run();
-    responder->write("P ");
-    responder->write(buf,strlen(buf));
-    responder->write("\n",1);
     return true;
   }
   if(cbuf[0]=='f') {
@@ -733,6 +799,7 @@ void ConfigureWireless()
 void ProcessWirelessData()
 {
 
+  //Computer.print(WirelessBuffer);
   /* handle xbee setup first */
   if(WirelessBuffer[0]=='O') {
     if(WirelessBuffer[1]=='K') {
