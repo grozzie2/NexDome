@@ -1,3 +1,5 @@
+#include <EEPROM.h>
+
 
 /*
  *  This package includes the drivers and sources for the NexDome
@@ -206,7 +208,7 @@ NexDome::NexDome()
   ParkAzimuth=180;
   //EnableMotor();
   //DisableMotor();
-  
+  accelStepper.setPinsInverted(true,false,false);
 }
 
 bool NexDome::SaveConfig()
