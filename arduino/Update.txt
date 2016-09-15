@@ -1,0 +1,70 @@
+Updating your NexDome controller firmware.
+
+The firmware for the NexDome controllers is provided as open source software
+that is end user modifiable and updateable.  For those with minimal / no
+software skills, fully functional firmware is provided via the repository
+on github.  No special skills are required to update your controller in
+the field, only a relatively simple software setup and installation is
+required.
+
+The NexDome controller is based on the open source Arduino Leonardo 
+microcontroller.  To update the firmware on the microcontroller requires
+the ardino development environment to be installed.  The software can be
+downloaded for Windows, Mac and Linux systems from the arduino website located
+here:-
+
+https://www.arduino.cc/en/Main/Software
+
+Begin by downloading and installing the arduino environment for your host
+platform.
+
+NexDome firmware relies on one external library for controlling the stepper
+motors.  The library is available here:-
+
+http://www.airspayce.com/mikem/arduino/AccelStepper/
+
+On that page is a link to the library as a zip file, download the zip file
+and save it to your computer.  A direct link to the zip file here:-
+
+http://www.airspayce.com/mikem/arduino/AccelStepper/AccelStepper-1.53.zip
+
+To install the library into your arduino environment, from the Sketch menu
+highlight the 'Include Library' option and then select 'Add Zip Library' from
+the submenu presented.  Using the file chooser then navigate to the copy of
+the library you just downloaded, and select it.  This should complete the setup
+of your environment to prepare for updating your NexDome controller firmware.
+
+Sources for the NexDome project are located online at github.com.  Start with
+this link:-
+
+https://github.com/grozzie2/NexDome
+
+There are multiple subdirectories at this location.  Navigate into the arduino
+then NexDome directory, and you will be presented with the file NexDome.ino.
+Save this file to your computer.
+
+The next step is to load this file into the Arduino environment.  Start the
+Arduino environment we downloaded earlier, then from the File menu select Open
+and navigate to the NexDome.ino file we just downloaded.
+
+The next step is to prepare for uploading new firmware to your controller.  In
+the Tools menu, highlight the Board option, and you will be presented with a
+list of boards, select Arduino Leonardo from the list.  The final step in
+in preparing, select 'verify / compile' from the sketch menu, to ensure all
+the bits got set up correctly.
+
+After you have confirmed the setup is correct, it's time to update the firmware
+on the controller.  Ensure the controller is connected to your computer with
+the usb cable and all other software that communicates with the controller
+(ascom or other drivers) have been stopped.  From the tools menu, highlight the
+Port entry, then from the submenu of available ports, select the port for your
+controller.  Final step, from the Sketch menu, select 'Upload'.  The controller
+should reset, and after the upload, the arduino environment will present the
+message 'Done uploading'.
+
+
+
+
+
+
+
