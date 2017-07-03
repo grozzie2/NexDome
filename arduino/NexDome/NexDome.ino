@@ -501,7 +501,7 @@ int NexDome::AtHome()
     MoveTo(LastHomeCount);
     //SettingHome=true;
     if (needCalibrationAfterHoming) {
-    	Dome.Calibrate();
+    	Calibrate();
     	needCalibrationAfterHoming = false;
     }
   }
@@ -571,17 +571,17 @@ void setup() {
   //  so we see the output in the monitor during inti
   //while(!Serial) {
   //}
-  Computer.println("Starting NexDome");
+  //Computer.println("Starting NexDome");
 
   MotorTurnsPerDomeTurn = (float)DOME_TEETH / (float) GEAR_TEETH;
   StepsPerGearTurn=200.0*(float)REDUCTION_GEAR*(float)STEP_TYPE;
   StepsPerDomeTurn=MotorTurnsPerDomeTurn*StepsPerGearTurn;
   StepsPerDegree=StepsPerDomeTurn/360;
 
-  Computer.print(StepsPerDomeTurn);
-  Computer.println(" steps per dome turn");
-  Computer.print(StepsPerDegree);
-  Computer.println(" steps per degree");
+  //Computer.print(StepsPerDomeTurn);
+  //Computer.println(" steps per dome turn");
+  //Computer.print(StepsPerDegree);
+  //Computer.println(" steps per degree");
 
   Dome.EnableMotor();
   Dome.DisableMotor();
@@ -886,7 +886,7 @@ void ProcessSerialCommand()
     Dome.FindHome();
     SerialTarget=true;
     Computer.println("H");
-    needCalibrationAfterHoming = false;
+    Dome.needCalibrationAfterHoming = false;
   }
   /* are we at the home position */
   if(SerialBuffer[0]=='z') {
@@ -914,7 +914,7 @@ void ProcessSerialCommand()
 		Computer.println("C");
 		Dome.FindHome();
 		SerialTarget=true;
-		needCalibrationAfterHoming = true;
+		Dome.needCalibrationAfterHoming = true;
     }
   }
   /*  restart xbee wireless */
@@ -964,7 +964,7 @@ void IncomingSerialChar(char a)
 void ConfigureWireless()
 {
   //  do nothing for now
-  Computer.println("Sending + to xbee");
+  // Computer.println("Sending + to xbee");
   DoingWirelessConfig=true;
   WirelessConfigState=0;
   memset(WirelessBuffer,0,SERIAL_BUFFER_SIZE);
@@ -984,18 +984,18 @@ void ProcessShutterData()
         switch(WirelessConfigState) {
           case 0:
             Wireless.println("ATID5555");
-            Computer.println("Setting wireless id");
+            // Computer.println("Setting wireless id");
 
             break;
           default:
-            Computer.println("Wireless config finished");
+            // Computer.println("Wireless config finished");
             DoingWirelessConfig=false;
             FoundXBee=true;
             break;
         }
         WirelessConfigState++;
       }
-      Computer.println("Clear wireless buffer");
+      // Computer.println("Clear wireless buffer");
       memset(WirelessBuffer,0,SERIAL_BUFFER_SIZE);
       WirelessPointer=0;
       return;
@@ -1083,7 +1083,7 @@ void IncomingWirelessChar(char a)
     WirelessBuffer[WirelessPointer]=0;
   }
   if(a < 0) {
-    Computer.println("Clearing garbage");
+    // Computer.println("Clearing garbage");
     WirelessPointer=0;
     WirelessBuffer[0]=0;
   }
@@ -1198,7 +1198,7 @@ void loop() {
         } else {
           ShutterAlive=false;
           ShutterState=SHUTTER_STATE_NOT_CONNECTED;
-          Computer.println("shutter asleep");
+          // Computer.println("shutter asleep");
           ConfigureWireless();
           LastShutterResponse=millis();
         }
