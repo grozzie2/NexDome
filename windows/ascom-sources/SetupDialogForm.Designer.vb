@@ -39,7 +39,7 @@ Partial Class SetupForm
         Me.StatusLine = New System.Windows.Forms.Label()
         Me.AzimuthBox = New System.Windows.Forms.GroupBox()
         Me.DomeAzimuth = New System.Windows.Forms.Label()
-        Me.SyncCheckbox = New System.Windows.Forms.CheckBox()
+        Me.ReverseCheckbox = New System.Windows.Forms.CheckBox()
         Me.HomeBox.SuspendLayout()
         Me.ParkBox.SuspendLayout()
         Me.BatteryBox.SuspendLayout()
@@ -204,15 +204,15 @@ Partial Class SetupForm
         Me.DomeAzimuth.TabIndex = 9
         Me.DomeAzimuth.Text = "    "
         '
-        'SyncCheckbox
+        'ReverseCheckbox
         '
-        Me.SyncCheckbox.AutoSize = True
-        Me.SyncCheckbox.Location = New System.Drawing.Point(14, 163)
-        Me.SyncCheckbox.Name = "SyncCheckbox"
-        Me.SyncCheckbox.Size = New System.Drawing.Size(96, 17)
-        Me.SyncCheckbox.TabIndex = 9
-        Me.SyncCheckbox.Text = "Sync on Home"
-        Me.SyncCheckbox.UseVisualStyleBackColor = True
+        Me.ReverseCheckbox.AutoSize = True
+        Me.ReverseCheckbox.Location = New System.Drawing.Point(14, 163)
+        Me.ReverseCheckbox.Name = "ReverseCheckbox"
+        Me.ReverseCheckbox.Size = New System.Drawing.Size(113, 17)
+        Me.ReverseCheckbox.TabIndex = 9
+        Me.ReverseCheckbox.Text = "Dome is Reversed"
+        Me.ReverseCheckbox.UseVisualStyleBackColor = True
         '
         'SetupForm
         '
@@ -220,7 +220,7 @@ Partial Class SetupForm
         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
         Me.ClientSize = New System.Drawing.Size(293, 212)
-        Me.Controls.Add(Me.SyncCheckbox)
+        Me.Controls.Add(Me.ReverseCheckbox)
         Me.Controls.Add(Me.AzimuthBox)
         Me.Controls.Add(Me.GroupBox1)
         Me.Controls.Add(Me.HomeButton)
@@ -265,5 +265,5 @@ Partial Class SetupForm
     Friend WithEvents StatusLine As Label
     Friend WithEvents AzimuthBox As GroupBox
     Friend WithEvents DomeAzimuth As Label
-    Friend WithEvents SyncCheckbox As CheckBox
+    Friend WithEvents ReverseCheckbox As CheckBox
 End Class

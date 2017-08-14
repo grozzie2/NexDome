@@ -101,7 +101,7 @@ Public Class SetupForm
         ha = Convert.ToDouble(ParkAzimuth.Text)
         MyDome.SetParkPosition(ha)
 
-        If SyncCheckbox.Checked Then
+        If ReverseCheckbox.Checked Then
             Dome.SyncOnHome = True
         Else
             Dome.SyncOnHome = False
@@ -117,9 +117,9 @@ Public Class SetupForm
         ParkAzimuth.Text = Dome.ParkPosition.ToString()
         HomePosition.Text = Dome.HomePosition.ToString()
         If Dome.SyncOnHome Then
-            SyncCheckbox.Checked = True
+            ReverseCheckbox.Checked = True
         Else
-            SyncCheckbox.Checked = False
+            ReverseCheckbox.Checked = False
         End If
         isCalibrating = False
 
@@ -136,7 +136,7 @@ Public Class SetupForm
         HomeButton.Text = "Abort"
 
         ' do not sync on the home position while we are calibrating
-        SyncCheckbox.Checked = False
+        ReverseCheckbox.Checked = False
         Dome.SyncOnHome = False
 
         MyDome.CalibrateDome()
@@ -163,8 +163,8 @@ Public Class SetupForm
         AzimuthBox.Text = "Dome Azimuth"
     End Sub
 
-    Private Sub SyncCheckbox_CheckedChanged(sender As Object, e As EventArgs) Handles SyncCheckbox.CheckedChanged
-        If SyncCheckbox.Checked = True Then
+    Private Sub SyncCheckbox_CheckedChanged(sender As Object, e As EventArgs) Handles ReverseCheckbox.CheckedChanged
+        If ReverseCheckbox.Checked = True Then
             Dome.SyncOnHome = True
         Else
             Dome.SyncOnHome = False

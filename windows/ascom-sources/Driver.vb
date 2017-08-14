@@ -465,7 +465,7 @@ Public Class Dome
         ' so it'll catch the second abort if not the first
         s = "a" & Chr(10) & "a"
         ' send this one now
-        DomeCommand(s)
+        DomeCommand("a")
         isCalibrating = False
 
     End Sub
@@ -522,6 +522,8 @@ Public Class Dome
 
     Public ReadOnly Property CanSetAltitude() As Boolean Implements IDomeV2.CanSetAltitude
         Get
+            'TL.LogMessage("CanSetAltitude Get", False.ToString())
+            'Return False
             TL.LogMessage("CanSetAltitude Get", True.ToString())
             Return True
         End Get
@@ -583,7 +585,8 @@ Public Class Dome
                 TL.LogMessage("OpenShutter", "already open")
             Case ShutterState.shutterClosed
                 TL.LogMessage("OpenShutter", "Opening")
-                SlewToAltitude(0)
+                'SlewToAltitude(0)
+                DomeCommand("d")
             Case ShutterState.shutterOpening
                 TL.LogMessage("OpenShutter", "Already in Progress")
             Case ShutterState.shutterClosing
