@@ -22,10 +22,11 @@
  */
  
 //  Libraries we need to include
+#include <EEPROM.h>
 #include <AccelStepper.h>
 
-#define VERSION_MAJOR 0
-#define VERSION_MINOR 11
+#define VERSION_MAJOR 1
+#define VERSION_MINOR 10
 
 
 /*
@@ -36,7 +37,7 @@
  * allows for bench testing drivers without physical hardware
  * set up
  */
-//#define BENCH_TEST 1
+#define BENCH_TEST 1
 
 /*
  *   Defining which pins for serial gets tricky
@@ -84,12 +85,17 @@
 #define SHUTTER_STATE_UNKNOWN 5
 
 #define REDUCTION_GEAR 15.3
+//#define REDUCTION_GEAR 77
 #define DOME_TEETH 77
 #define GEAR_TEETH 7
-#define SHUTTER_MOVE_TIME 45
+#ifdef BENCH_TEST
+#define SHUTTER_MOVE_TIME 30
+#else
+#define SHUTTER_MOVE_TIME 90
+#endif
 // set this to match the type of steps configured on the
 // stepper controller
-#define STEP_TYPE 4
+#define STEP_TYPE 8
 
 //  Set up a default for the communication timeout
 //  for 5 minutes, we get 300000 millis
@@ -98,11 +104,38 @@ unsigned long int ShutterCommunicationTimeout=300000;
 //  When we reach the timeout threshold with no communications at all
 //  then the shutter will be closed
 unsigned long int LastCommandTime=0;
+//  we want to start up not hibernated
+//  and if the state flag says we are
+//  Wireless configuration will kick in right away
+bool HibernateRadio=false;
+bool RadioLongSleep=true;
+unsigned long int LastBatteryCheck=0;
+unsigned long int HibernateTimeout=60000;
+unsigned long int MotorOffTime;
+//  Initialize the serial target to true
+//  so when we come from power up, our drop dead timers
+//  become active, unless somebody pushes a button and puts
+//  us in manual control mode
+//  We used to have another state variable for shutter safety modes
+//  but they all trigger at the same time as this one
+//  So this doubles as the safety trigger too
+bool SerialTarget=true;
 
 int BatteryVolts=0;
+int CutoffVolts=0;
+int LowVoltCount=0;
 
 //  The shutter class will use an accel stepper object to run the motor
 AccelStepper accelStepper(AccelStepper::DRIVER, STP, DIR);
+
+#define EEPROM_LOCATION 10
+#define SIGNATURE 1037
+typedef struct ShutterConfiguration {
+  int signature;
+  unsigned long int StepsToFullOpen;
+  unsigned long int HibernateTimeout;
+  int CutoffVolts;
+} shutter_config;
 
 void ConfigureWireless();
 
@@ -145,6 +178,8 @@ class NexShutter
     int getShutterState();
     float getShutterPosition();
     bool setShutterPosition(float);
+    bool SaveConfig();
+    bool ReadConfig();
 };
 
 NexShutter::NexShutter()
@@ -160,6 +195,37 @@ NexShutter::NexShutter()
   HaveDetectedClose=false;
 }
 
+bool NexShutter::SaveConfig()
+{
+  shutter_config cfg;
+  memset(&cfg,0,sizeof(cfg));
+  cfg.signature=SIGNATURE;
+  cfg.StepsToFullOpen=StepsToFullOpen;
+  cfg.HibernateTimeout=HibernateTimeout;
+  cfg.CutoffVolts=CutoffVolts;
+  EEPROM.put(EEPROM_LOCATION,cfg);
+  return true;
+}
+
+bool NexShutter::ReadConfig()
+{
+  shutter_config cfg;
+  
+  memset(&cfg,0,sizeof(cfg));
+  EEPROM.get(EEPROM_LOCATION,cfg);
+  if(cfg.signature != SIGNATURE) {
+    //Computer.println("Invalid EEPROM data");
+    return false;
+  }
+  //Computer.println("Using eeprom data");
+  //StepsToFullOpen=cfg.StepsToFullOpen;
+  HibernateTimeout=cfg.HibernateTimeout;
+  CutoffVolts=cfg.CutoffVolts;
+  SetStepsToFullOpen(cfg.StepsToFullOpen);
+  //Computer.println(StepsToFullOpen);
+  return true;
+}
+
 void NexShutter::EnableMotor()
 {
   //Computer.print("Enable at ");
@@ -168,9 +234,10 @@ void NexShutter::EnableMotor()
 digitalWrite(EN,LOW);
 //#else
 //digitalWrite(EN,HIGH);
-//#endif  
+//#endif 
   delay(100);
-  Active=true;  
+  Active=true;
+  HibernateRadio=false;  
 }
 
 void NexShutter::DisableMotor()
@@ -180,9 +247,19 @@ digitalWrite(EN,HIGH);
 //#else
 //digitalWrite(EN,LOW);
 //#endif  
+
+  //digitalWrite(DIR,LOW);
+  //digitalWrite(STP,LOW);
+  //digitalWrite(DIR,HIGH);
+  //digitalWrite(STP,HIGH);
+
+
   //Computer.print("Disable at ");
   //Computer.println(CurrentPosition());
   Active=false;
+  // start our hibernate timer
+  MotorOffTime=millis();
+  //HibernateRadio=true;
 }
 
 bool NexShutter::Run()
@@ -199,32 +276,49 @@ bool NexShutter::Run()
      //  We want it to stop on an even step boundary
      //  and if not, round it off
     if(l==0) {
-      Computer.print("Stopped at ");
-      Computer.println(pos);
+      //Computer.print("Stopped at ");
+      //Computer.println(pos);
       DisableMotor();
       Opening=false;
       //Closing=false;
 #ifdef BENCH_TEST
-      if(pos == 0) isClosed=true;
-      if(pos == StepsToFullOpen) isOpenFull=true;
+      if(pos <= 0) isClosed=true;
+      if(pos >= StepsToFullOpen) {
+        isOpenFull=true;
+      }
 #endif
       if(isClosed) {
         //  We have a sensor that says we are closed
-        Computer.println("At closed sensor");
+        //Computer.println("At closed sensor");
         accelStepper.setCurrentPosition(0);
         HaveDetectedClose=true;
         Closing=false;
       }
       if(isOpenFull) {
         long int pos;
-        Computer.print("At open sensor ");
+        //Computer.print("At open sensor ");
         pos=accelStepper.currentPosition();
-        Computer.println(pos);
+        //Computer.println(pos);
         if(HaveDetectedClose) {
           //  we have detected a closed position
           //  So this is our step count to full open
-          Computer.println("Calibrating Shutter");
-          StepsToFullOpen=pos;
+          long int delta;
+          delta=StepsToFullOpen-pos;
+          //Computer.println(delta);
+          if(delta < 0) delta=delta*-1;
+          //  if our difference is more than
+          //  2% of what we have saved 
+          if(delta > StepsToFullOpen/50) {
+            Computer.println("Calibrating Shutter");
+            StepsToFullOpen=pos;
+            SaveConfig();
+          } else {
+            //  dont have to do anything, calibration data is good
+            //Computer.println("Calibration ok");
+            //Computer.print(StepsToFullOpen);
+            //Computer.print(" ");
+            //Computer.println(pos);
+          }
         } else {
           //  We are full open based on a sensor
           //  
@@ -257,7 +351,21 @@ bool NexShutter::Run()
       pos=accelStepper.currentPosition();
       MoveTo(pos + 5000);
     }
-    
+#ifdef BENCH_TEST
+    long int pos;
+     pos=accelStepper.currentPosition();
+  
+    if((pos > StepsToFullOpen)&&(!Closing)) {
+      isOpen=true;
+      Stop();
+      //Computer.println("hit open");
+    }
+    if((pos <= 0)&&(!Opening)) {
+      //Computer.println("hit closed");
+      isClosed=true;
+      Stop();
+    }
+#endif
   }
   return r;
 }
@@ -302,13 +410,17 @@ void NexShutter::SetStepsToFullOpen(long int s)
   
   StepsToFullOpen=s;
   StepsPerSecond=StepsToFullOpen/SHUTTER_MOVE_TIME;
+  //  if we let the stop rate get to high then accelstepper takes to long
+  //  we start missing the xbee timings on the xbee serial port
+  if(StepsPerSecond > 2500) StepsPerSecond=2500;
   AccelSpeed=StepsPerSecond*2;
   DecelSpeed=StepsPerSecond*4;
   accelStepper.setMaxSpeed(StepsPerSecond);
-  accelStepper.setAcceleration(StepsPerSecond * 2);
+  //  we need to stop fairly quickly when a sensor is hit
+  accelStepper.setAcceleration(StepsPerSecond);
 
-  Computer.print(StepsPerSecond);
-  Computer.println(" steps per second"); 
+  //Computer.print(StepsPerSecond);
+  //Computer.println(" steps per second"); 
   
   return;
 }
@@ -348,7 +460,7 @@ void NexShutter::MoveTo(long int t)
 
 void NexShutter::OpenShutter()
 {
-  Computer.println("Enter open shutter");
+  //Computer.println("Enter open shutter");
   Opening=true;
   OpeningFull=true;
   Closing=false;
@@ -359,7 +471,7 @@ void NexShutter::OpenShutter()
 
 void NexShutter::CloseShutter()
 {
-  Computer.println("Enter close shutter");
+  //Computer.println("Enter close shutter");
   Closing=true;
   ClosingFull=true;
   Opening=false;
@@ -439,8 +551,8 @@ bool NexShutter::setShutterPosition(float target)
   r=s%STEP_TYPE;
   s=s-r;
   
-  Computer.print("set position goes to ");
-  Computer.println(s);
+  //Computer.print("set position goes to ");
+  //Computer.println(s);
   MoveTo(s);
   
 }
@@ -514,10 +626,6 @@ void setup() {
   Computer.begin(9600);
   Wireless.begin(9600);
 
-//  Hack to make leonardo wait for serial port connection
-  //while(!Serial) {  
-  //}
-  //  give pins a moment to settle
   delay(200);
   //  now read both limit switches
   ClosedInterrupt();
@@ -526,9 +634,12 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(CLOSED_SWITCH),ClosedInterrupt,CHANGE);
   attachInterrupt(digitalPinToInterrupt(OPEN_SWITCH),OpenInterrupt,CHANGE);
   
+   //  hack for development, we want it to wait now for the serial port to be connected
+  //  so we see the output in the monitor during inti
+  //while(!Serial) {
+  //}
 
-  
-  Computer.println("Starting NexShutter"); 
+  //Computer.println("Starting NexShutter"); 
 
   long int MotorTurnsPerShutterMove;
   long int StepsPerGearTurn;
@@ -538,14 +649,21 @@ void setup() {
   StepsPerGearTurn=200.0*(float)REDUCTION_GEAR*STEP_TYPE;
   StepsPerShutterMove=MotorTurnsPerShutterMove*StepsPerGearTurn;
 
-  Computer.print(StepsPerShutterMove);
-  Computer.println(" Steps per shutter move");
+  //Computer.print(StepsPerShutterMove);
+  //Computer.println(" Steps per shutter move");
+
 
   Shutter.EnableMotor();
   Shutter.DisableMotor();
   Shutter.SetStepsToFullOpen(StepsPerShutterMove);
- 
-  ConfigureWireless();
+  //  We have calculated defaults, now see if we have actual calibration info in the eeprom
+  //  which will overwrite our defaults if they exist
+  Shutter.ReadConfig();
+
+#ifdef BENCH_TEST
+  //  lets make the bench test open/close a little faster
+  Shutter.SetStepsToFullOpen(60000);
+#endif
 
   //  test if we are at a limit switch during startup
   //  to set our full open/close state flags
@@ -553,7 +671,7 @@ void setup() {
   if(a==0) {
     Shutter.isOpenFull=true;
     accelStepper.setCurrentPosition(StepsPerShutterMove);
-    Computer.println("Shutter is open full");
+    //Computer.println("Shutter is open full");
   }
   else Shutter.isOpenFull=false;
   
@@ -561,7 +679,7 @@ void setup() {
   if(a==0) {
     Shutter.isClosed=true;
     Shutter.HaveDetectedClose=true;
-    Computer.println("Shutter is closed");
+    //Computer.println("Shutter is closed");
   }
   else Shutter.isClosed=false;
 
@@ -570,9 +688,18 @@ void setup() {
   Shutter.isClosed=true;
 #endif
 
- //  prime our last command time so our timeouts
- //  can work
- LastCommandTime=millis();
+   //  prime our last command time so our timeouts
+   //  can work
+   LastCommandTime=millis();
+   LastBatteryCheck=0;
+   //  and configure the xbee
+   //  if it has not been configured at all
+   //  then it will respond right away
+   //  if the xbee is in a hibernate because it's already been configured
+   //  our code to reconfigure it will happen immediately upon the first incoming
+   //  character that wakes it up
+   ConfigureWireless();
+   CheckBattery();
 
 }
 
@@ -606,6 +733,8 @@ int CheckButtons()
   be=digitalRead(BUTTON_CLOSE);
   buttonstate=bw+(be<<1);
   buttonstate=buttonstate ^ 0x03;
+
+ 
   return buttonstate;
   
 }
@@ -617,11 +746,6 @@ int CheckButtons()
 //#define SERIAL_BUFFER_SIZE 20
 char SerialBuffer[SERIAL_BUFFER_SIZE];
 int SerialPointer=0;
-//  Initialize the serial target to true
-//  so when we come from power up, our drop dead timers
-//  become active, unless somebody pushes a button and puts
-//  us in manual control mode
-bool SerialTarget=true;
 
 //  Now define a buffer and pointers for our serial link over wireless
 //  for talking to the rotator
@@ -643,10 +767,11 @@ bool FoundXbee=false;
 bool ProcessCommandBuffer(char *cbuf, Serial_ *responder)
 {
   char buf[20];
+//Computer.println(cbuf);
 
   //  We always need to process an abort
   if(cbuf[0]=='a') {
-    Computer.println("Sending abort response");
+    //Computer.println("Sending abort response");
     responder->println("A");
     //SerialTarget=false;
     Shutter.Stop();
@@ -679,6 +804,9 @@ bool ProcessCommandBuffer(char *cbuf, Serial_ *responder)
           responder->write("U",1);
           break;
       }
+      //  tell the host if we have the radio in hibernation mode
+      if(RadioLongSleep) responder->write("1",1);
+      else responder->write("0",1);
       responder->write("\n",1);
       if(Shutter.Active) Shutter.Run();
       return true;
@@ -694,10 +822,6 @@ bool ProcessCommandBuffer(char *cbuf, Serial_ *responder)
     return true;
   }
     
-  //  if we are moving the shutter
-  //  dont process anything else, it causes
-  //  to many jitters on the stepper
-  if(Shutter.Active) return true;
   
   if(cbuf[0]=='q') {  
     dtostrf(Shutter.CurrentPosition(),2,1,buf);
@@ -706,6 +830,10 @@ bool ProcessCommandBuffer(char *cbuf, Serial_ *responder)
     responder->write("\n",1);
     return true;
   }
+  //  if we are moving the shutter
+  //  dont process anything else, it causes
+  //  to many jitters on the stepper
+  if(Shutter.Active) return true;
 
   
   /*  restart xbee wireless */
@@ -717,31 +845,84 @@ bool ProcessCommandBuffer(char *cbuf, Serial_ *responder)
   if(cbuf[0]=='o') {
     responder->println("O");
     SerialTarget=true;
+    //ShutterSafety=true;
     Shutter.OpenShutter();
+    //delay(100);
+    //HibernateRadio=false;
+    //ConfigureWireless();
     return true;
   }
   if(cbuf[0]=='c') {
     responder->println("C");
     SerialTarget=true;
+    //ShutterSafety=true;
     Shutter.CloseShutter();
     return true;
   }
   if(cbuf[0]=='f') {
     float alt;
     alt=atoi(&cbuf[1]);
+    SerialTarget=true;
+    //ShutterSafety=true;
     Shutter.setShutterPosition(alt);
     return true;
   }
   if(cbuf[0]=='b') {
+    if(cbuf[1]==' ') {
+      int newcutoff;
+      newcutoff=atoi(&cbuf[1]);
+      if(newcutoff != CutoffVolts) {
+        CutoffVolts=newcutoff;
+        Shutter.SaveConfig();
+      }
+    }
     responder->print("B ");
     if(Shutter.Active) Shutter.Run();
-    responder->println(BatteryVolts);
+    responder->print(BatteryVolts);
+    responder->print(" ");
+    responder->println(CutoffVolts);
     return true;
   }
 
+  //  get shutter hibernate timer
+  if(cbuf[0]=='h') {
+    //Computer.println(cbuf);
+    if(cbuf[1]==' ') {
+      unsigned long int newhibernate;
+      newhibernate=atol(&cbuf[1]);
+      //Computer.println(newhibernate);
+      // enforce that our hibernation timer cannot be less than
+      //  60 seconds
+      if(newhibernate < 60000) newhibernate=60000;
+      if(newhibernate !=HibernateTimeout) {
+        HibernateTimeout=newhibernate;
+        Shutter.SaveConfig();
+      }
+    }
+    responder->print("H ");
+    responder->println(HibernateTimeout);
+  }
+  
+  if(cbuf[0]=='g') {
+    Computer.print("g ");
+    Computer.print(LowVoltCount);
+
+    Computer.println(" ");
+  }
+  if(cbuf[0]=='x') {
+    //  this is a wakeup
+    //  so we are more responsive when the config
+    //  dialog is on screen
+    //  just pretend we just turned off the motor
+    //Computer.println("Waking up");
+    responder->println("X");
+    HibernateRadio=false;
+    MotorOffTime=millis();
+  }
   /* get firmware version */
   if(cbuf[0]=='v') {
-    responder->print("NexShutter V ");
+    //Computer.println("Sending version");
+    responder->print("VNexShutter ");
     responder->print(VERSION_MAJOR);
     responder->print(".");
     responder->println(VERSION_MINOR);
@@ -784,47 +965,126 @@ void IncomingSerialChar(char a)
 
 void ConfigureWireless()
 {
-  //  do nothing for now
-  Computer.println("Sending + to xbee");
+
+//  we need to flush any chars in the uart buffers
+//  while(Wireless.available()) {
+//    char a;
+//    a=Wireless.read();
+//    //IncomingWirelessChar(a);
+//  }
+  //Computer.println("Sending + to xbee");
   DoingWirelessConfig=true;
   LastCommandTime=millis(); //  reset the communication timeout
   WirelessConfigState=0;
   memset(WirelessBuffer,0,SERIAL_BUFFER_SIZE);
   WirelessPointer=0;
   //delay(1100);
+  FoundXbee=false;
   Wireless.print("+++");
-  //delay(1100);
+  //  ensure nothing else gets sent to the xbee after this +++
+  //for a little more than our guard time
+  delay(110);
 }
 
 void ProcessWirelessData()
 {
-
-  //Computer.print(WirelessBuffer);
+  //Computer.print("buffer size");
+  //Computer.println(WirelessPointer);
+  //Computer.println(WirelessBuffer);
   /* handle xbee setup first */
   if(WirelessBuffer[0]=='O') {
     if(WirelessBuffer[1]=='K') {
       //  The xbee unit is ready for configuration
+      FoundXbee=true;
       
       if(DoingWirelessConfig) {
         switch(WirelessConfigState) {
           case 0:
             Wireless.println("ATID5555");
-            Computer.println("Setting wireless id");
-          
+            //Computer.println("Setting wireless id");
+            break;
+          case 1:
+            Wireless.println("ATPL0");
+            //Computer.println("Setting wireless power");
+            break;
+          case 2:
+            Wireless.println("ATCE0");
+            //Computer.println("Setting Endpoint");
+            break;
+          case 3:
+              Wireless.println("ATSM4");
+              //Wireless.println("ATSM0");
+              //Computer.println("Setting sleep mode");
+            break;
+          case 4:
+            // Set the sleep period
+            // this is the endpoint, it defines how long we sleep
+            // when sleep mode is activated
+            //  hexadecimal number for time in tens of milliseconds
+            if(HibernateRadio) {
+              Wireless.println("ATSP5DC");
+              Computer.println("Setting long sleep period");
+              RadioLongSleep=true;
+            } else {
+              Wireless.println("ATSP32");
+              Computer.println("Setting short sleep period");
+              RadioLongSleep=false;
+            }
+            break;
+          case 5:
+            //  Sleep wait time defines how long we wait after
+            //  Seeing data on serial or rf before going back to
+            //  power saving sleep mode
+            //  hexadecimal number for time in milliseconds
+            Wireless.println("ATST100");
+            //Computer.println("Setting sleep wait time");
+            break;
+          case 6:
+            //  Set the guard time to a much lower value
+            //  so we can sneak the +++ in between queries from
+            //  the master unit, before our sleep timeouts hit
+            Wireless.println("ATGT64");
+            //Computer.println("Setting guard time");
+            break;
+          case 7:
+            Wireless.println("ATCN");
+            //Computer.println("Exit Command Mode");
             break;
           default:
-            Computer.println("Wireless config finished");
+            //Computer.println("Wireless config finished");
             DoingWirelessConfig=false;
-            FoundXbee=true;
+
+            //  we have configured the wireless, so we should probably send the rotator
+            //  a status command at this point too
+            //  as we may have ate / missed a status query during the wireless
+            //  reconfigure process
+            //  The easiest way to do this, just set up the buffer as if we had
+            //  just recieved a command request, and process it
+            WirelessBuffer[0]='s';
+            WirelessBuffer[1]=0;
+            WirelessPointer=1;
+            ProcessCommandBuffer(WirelessBuffer,(Serial_ *)&Wireless);          
+            
             break;
         }
         WirelessConfigState++;
       }
-      Computer.println("Clear wireless buffer");
+      //Computer.println("Clear wireless buffer");
       memset(WirelessBuffer,0,SERIAL_BUFFER_SIZE);
       WirelessPointer=0;
       return;
     }
+  }
+  if(DoingWirelessConfig) {
+    //  if we get to here, the xbee missed our +++, probably due to sleep states
+    //  Restart the configuration state machine
+    //Computer.println("restart wireless state machine");
+    //  wait fo the xbee guard time
+    delay(110);
+    //  now configure it
+    ConfigureWireless();
+    //delay(1100);
+    return;
   }
   // update our timer for the keep alive routines
   if(!MasterAlive) {
@@ -838,10 +1098,15 @@ void ProcessWirelessData()
     /*  process a command from the master */
     if(ProcessCommandBuffer(WirelessBuffer,(Serial_ *)&Wireless)) {
       //  if this was a valid command
-      //  reset out timeout
+      //  reset our timeout
       LastCommandTime=millis();;
     }
   }
+  //if(HibernateRadio != RadioLongSleep) {
+  //  Computer.println("Change sleep mode");
+  //  ConfigureWireless();
+ // }
+  
 
   // clear the buffer now that it's processed
   memset(WirelessBuffer,0,SERIAL_BUFFER_SIZE);
@@ -853,10 +1118,12 @@ void ProcessWirelessData()
 
 void IncomingWirelessChar(char a)
 {
+  //return;
   if((a=='\n')||(a=='\r')) {
-    return ProcessWirelessData();
+    if(WirelessPointer > 0 ) ProcessWirelessData();
+    return;
   }
-  //Computer.println((int)a);
+  //Computer.println(a);
   WirelessBuffer[WirelessPointer]=a;
   WirelessPointer++;
   if(WirelessPointer==SERIAL_BUFFER_SIZE) {
@@ -868,16 +1135,13 @@ void IncomingWirelessChar(char a)
   //  just a quick hack until we put error detection on
   //  this link
   if(a < 0) {
-    Computer.println("Clearing garbage");
+    //Computer.println("Clearing garbage");
     WirelessPointer=0;
     WirelessBuffer[0]=0;
   }
   //Computer.print(a);
   return;
 }
-
-unsigned long int LastBatteryCheck=0;
-
 
 void CheckBattery()
 {
@@ -887,16 +1151,30 @@ void CheckBattery()
   now=millis();
   //  deal with rollovers
   if(now < LastBatteryCheck) LastBatteryCheck=now;
-  //  only checking once every 15 seconds
-  if((now - LastBatteryCheck) < 15000) return;
+  //  if the radio is hibernated, we are not busy, check battery every 15 seconds
+  //  but check it every second if we are awake and processing commands
+  if(RadioLongSleep) {
+    if(((now - LastBatteryCheck) < 15000)&&(BatteryVolts != 0)) return;
+  } else {
+    if(((now - LastBatteryCheck) < 1000)&&(BatteryVolts != 0)) return;
+    
+  }
   LastBatteryCheck=now;
   volts=analogRead(VPIN);
+  //Computer.print("battery ");
   //Computer.println(volts);
+  //  Account for our resistors
+  //  to figure out the real voltage on the 12v line
   volts=volts/2;
   volts=volts*3;
   //v=(float)volts/(float)100;
   BatteryVolts=volts;
-  //Computer.println(volts);  
+  //Computer.println(volts);
+  if(BatteryVolts < CutoffVolts) {
+    LowVoltCount++;
+  } else {
+    LowVoltCount=0;
+  }
   return;
 }
 
@@ -910,7 +1188,11 @@ void loop() {
     //Computer.println(buttonstate);
     //  if we have had motion commanded over the serial port
     //  abort it and use the on board buttons as definitive
-    if(buttonstate != 0) SerialTarget=false;
+    //  and this turns off all the safety close events
+    if(buttonstate != 0) {
+      SerialTarget=false;
+      //ShutterSafety=false;
+    }
     switch(buttonstate) {
       case 1:
         //  Dont continue the move if our limit switch is set
@@ -947,25 +1229,60 @@ void loop() {
     CheckBattery();
   }
 
-  //  if we are being driven remotely, ie not by direct push buttons
-  if(SerialTarget) {
+/*
+  if(!FoundXbee) {
+    //  we are out of sync with the xbee
     now=millis();
     //  deal with rollovers of the millis return
     if(now < LastCommandTime) LastCommandTime=now;
-    if(!FoundXbee) {
-      //  we have not had an ok return from xbee yet
-      //if(!DoingWirelessConfig) {
-        if(now-LastCommandTime > 10000) {
-          //  we have gone 10 seconds with no response from the xbee
-          //  and it's not been configured yet
-          //  we should reconfigure the wireless link
-          //  start by resetting the xbee state machine timeouts
-          ShutterCommunicationTimeout=15000;
-          LastCommandTime=now;
-          ConfigureWireless();
-        }
-      //}
+    if(now-LastCommandTime > 3000) {
+      ConfigureWireless();
     }
+  }
+*/
+
+  if(!Shutter.Active) {
+    //  lets see if it's time to hibernate the radio
+    if(!HibernateRadio) {
+      now=millis();
+      if((now - MotorOffTime) > HibernateTimeout) {
+        //Computer.println("Hibernate Timeout");
+        HibernateRadio=true;
+      }
+    }
+  }
+
+  if(HibernateRadio != RadioLongSleep ) {
+         now=millis();
+        //  make sure we are more than guard time, and less than timeout
+        //  since the last wireless char was recieved
+        if((now -LastCommandTime) > 110) {
+          //  the xbee has not had data for the guard time plus a bit
+          if(!DoingWirelessConfig) {
+            //  The xbee state machine is not in the process of changing
+            ConfigureWireless();
+          }
+        }
+      }
+
+
+  //  if we are being driven remotely, ie not by direct push buttons
+  if(SerialTarget) {
+    if(LowVoltCount > 10) {
+      if(!Shutter.isClosed) {
+        if(!Shutter.Closing) {
+          if(Shutter.Active) {
+            Shutter.Stop();
+          } else {
+            //Computer.println("Low battery close shutter");
+            Shutter.CloseShutter();
+          }
+        }
+      }
+    }
+      now=millis();
+    //  deal with rollovers of the millis return
+    if(now < LastCommandTime) LastCommandTime=now;
     if(now-LastCommandTime > ShutterCommunicationTimeout) {
       //  we have been longer than timeout
       if(!Shutter.isClosed) {
@@ -982,7 +1299,10 @@ void loop() {
             //  we have reached timeout on communications
             //  and shutter is not in motion
             //  So close it up and protect the gear from weather
-            Computer.println("Drop dead timer closing shutter");
+            Computer.println("Drop dead timer close shutter");
+            //Computer.println(now);
+            //Computer.println(LastCommandTime);
+            //Computer.println(ShutterCommunicationTimeout);
             Shutter.CloseShutter();
           }
         }
