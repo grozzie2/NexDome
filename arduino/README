@@ -19,7 +19,7 @@ the sources for the dome rotation contoller, and one contains the
 sources for the shutter controller.
 
 Firmware for these controllers was developed using arduino tools
-based on Arduino 1.6.5, and makes extensive use of the AccelStepper
+based on Arduino 1.8.3, and makes extensive use of the AccelStepper
 library.
 
 If not already installed, the AccelStepper library is available here:-
