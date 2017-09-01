@@ -80,7 +80,7 @@ Public Class Dome
     'Friend Shared HomeProfileName As String = "Home Position" 'Constants used for Profile persistence
     ' for now, we will let the driver sync on the home position
     ' this is scheduled to move into the dome firmware, but it's not there yet
-    Friend Shared SyncHomeProfileName As String = "Sync on Home"
+    'Friend Shared SyncHomeProfileName As String = "Sync on Home"
     Friend Shared traceStateProfileName As String = "Trace Level"
     Friend Shared comPortDefault As String = "COM1"
     Friend Shared traceStateDefault As String = "False"
@@ -100,10 +100,16 @@ Public Class Dome
     Friend Shared isAtPark As Boolean = False
     Friend Shared BatteryVoltage As Double = 0
     Friend Shared ShutterVoltage As Double = 0
+    Friend Shared ShutterSleepTimer As Integer = 0
+    Friend Shared LowVoltageCutoff As Double = 0
+    Friend Shared IsReversed As Integer = -1
 
     Private TicksLastCommand As Integer = 0
     Private isSlewing As Boolean = False
     Private isParking As Boolean = False
+    ' set these up so we dont wait on a status change at startup
+    Private TimeSinceClose As Integer = 60
+    Private TimeSinceOpen As Integer = 60
     Friend Shared isHoming As Boolean = False
     Friend Shared isCalibrating As Boolean = False
     Friend Shared StepsPerDomeTurn As Integer = 0
@@ -111,9 +117,12 @@ Public Class Dome
     '  bit of a kludge, but, if I make these shared friends, then the setup dialog can access them
     Friend Shared ParkPosition As Double = 0
     Friend Shared HomePosition As Double = 0
+    Friend Shared DomeFirmwareVersion As String = ""
+    Friend Shared ShutterFirmwareVersion As String = "Not Connected"
+    Friend Shared FoundShutter As Boolean = "False"
 
 
-    Private connectedState As Boolean ' Private variable to hold the connected state
+    Public Shared connectedState As Boolean ' Private variable to hold the connected state
     Private utilities As Util ' Private variable to hold an ASCOM Utilities object
     Private astroUtilities As AstroUtils ' Private variable to hold an AstroUtils object to provide the Range method
     Private TL As TraceLogger ' Private variable to hold the trace logger object (creates a diagnostic log file with information that you specify)
@@ -128,7 +137,7 @@ Public Class Dome
         TL.Enabled = traceState
         TL.LogMessage("Dome", "Starting initialisation")
 
-        connectedState = False ' Initialise connected to false
+        'connectedState = False ' Initialise connected to false
         utilities = New Util() ' Initialise util object
         astroUtilities = New AstroUtils 'Initialise new astro utiliites object
 
@@ -221,6 +230,9 @@ Public Class Dome
 
         If Result = "A" Then
             ' this was an abort command
+            ' reset timers so we dont sit on a bad display for opening/closing states
+            TimeSinceClose = 60
+            TimeSinceOpen = 60
             Return ""
         End If
         If Result = "G" Then
@@ -235,13 +247,27 @@ Public Class Dome
             Dim s As Integer
             ' this was a query for current shutter status
             s = Convert.ToInt16(RxString)
+            TimeSinceClose = TimeSinceClose + 1
+            TimeSinceOpen = TimeSinceOpen + 1
             Select Case s
                 Case 1
-                    DomeShutterState = ShutterState.shutterOpen
+                    ' When we get an open or close command, shutter may not pick it up for
+                    ' 30 seconds, so, lets keep the state for 30 seconds after we send the
+                    ' command, makes the displays etc look better
+                    ' improvements in the firmware now mean we only need 5 read
+                    ' to be correct
+                    If TimeSinceClose > 5 Then
+                        DomeShutterState = ShutterState.shutterOpen
+                    End If
                 Case 2
                     DomeShutterState = ShutterState.shutterOpening
                 Case 3
-                    DomeShutterState = ShutterState.shutterClosed
+                    ' keep the state for 5 seconds after the open/close command
+                    ' to allow wireless links to catch up
+                    'TimeSinceOpen = TimeSinceOpen + 1
+                    If TimeSinceOpen > 5 Then
+                        DomeShutterState = ShutterState.shutterClosed
+                    End If
                 Case 4
                     DomeShutterState = ShutterState.shutterClosing
                 Case Else
@@ -277,6 +303,7 @@ Public Class Dome
             Dim btest() As String = Split(RxString)
             BatteryVoltage = Convert.ToDouble(btest(1))
             ShutterVoltage = Convert.ToDouble(btest(2))
+            LowVoltageCutoff = Convert.ToDouble(btest(3))
         End If
 
         If Result = "V" Then
@@ -288,10 +315,21 @@ Public Class Dome
             If vtest(0) = "NexDome" Then
                 ' this is a rotation controller
                 ControllerType = 1
+                DomeFirmwareVersion = vtest(2)
+                If vtest(5) IsNot "" Then
+                    ShutterFirmwareVersion = vtest(5)
+                    FoundShutter = True
+                Else
+                    FoundShutter = False
+                    ShutterFirmwareVersion = "Not Connected"
+
+                End If
             Else
                 If vtest(0) = "NexShutter" Then
-                    ' we are hooked up to a shutter controller
+                    ' we can get the shutter version from the rotator
+                    ' too
                     ControllerType = 2
+                    ShutterFirmwareVersion = vtest(2)
                 End If
             End If
             ControllerVersion = vtest(3)
@@ -305,6 +343,12 @@ Public Class Dome
         End If
         If Result = "N" Then
             ParkPosition = Convert.ToDouble(RxString)
+        End If
+        If Result = "Y" Then
+            IsReversed = Convert.ToInt16(RxString)
+        End If
+        If Result = "R" Then
+            ShutterSleepTimer = Convert.ToInt32(RxString)
         End If
 
         Return ""
@@ -385,7 +429,21 @@ Public Class Dome
                     SerialPort.Connected = False
                     SerialPort.Dispose()
                     SerialPort = Nothing
+                Else
+                    ' If we get here, then we did get connected, and found our controller
+                    ' We should flesh out a few details right away
+                    ' Get the home position
+                    DomeCommand("i")
+                    ' Get the park position
+                    DomeCommand("n")
+                    ' Get battery status
+                    DomeCommand("k")
+                    ' Get current position
+                    DomeCommand("q")
+                    ' Get the sleep timer
+                    DomeCommand("r")
                 End If
+
 
             Else
                 connectedState = False
@@ -522,10 +580,10 @@ Public Class Dome
 
     Public ReadOnly Property CanSetAltitude() As Boolean Implements IDomeV2.CanSetAltitude
         Get
-            'TL.LogMessage("CanSetAltitude Get", False.ToString())
-            'Return False
-            TL.LogMessage("CanSetAltitude Get", True.ToString())
-            Return True
+            TL.LogMessage("CanSetAltitude Get", False.ToString())
+            Return False
+            'TL.LogMessage("CanSetAltitude Get", True.ToString())
+            'Return True
         End Get
     End Property
 
@@ -568,6 +626,8 @@ Public Class Dome
         TL.LogMessage("CloseShutter", " ")
         MotionStarting()
         DomeCommand("e")
+        DomeShutterState = ShutterState.shutterClosing
+        TimeSinceClose = 0
     End Sub
 
     Public Sub FindHome() Implements IDomeV2.FindHome
@@ -585,8 +645,9 @@ Public Class Dome
                 TL.LogMessage("OpenShutter", "already open")
             Case ShutterState.shutterClosed
                 TL.LogMessage("OpenShutter", "Opening")
-                'SlewToAltitude(0)
                 DomeCommand("d")
+                DomeShutterState = ShutterState.shutterOpening
+                TimeSinceOpen = 0
             Case ShutterState.shutterOpening
                 TL.LogMessage("OpenShutter", "Already in Progress")
             Case ShutterState.shutterClosing
@@ -640,18 +701,19 @@ Public Class Dome
     Public Sub SlewToAltitude(Altitude As Double) Implements IDomeV2.SlewToAltitude
         Dim TxString As String
         Dim alt As Double
-        TL.LogMessage("SlewToAltitude", Convert.ToString(Altitude))
-        alt = Math.Round(Altitude, 1)
-        'alt = 90 - alt
-        If alt > 90 Then
-            Throw New ASCOM.InvalidValueException
-        End If
-        If alt < 0 Then
-            Throw New ASCOM.InvalidValueException
-        End If
-        TxString = "f " & alt.ToString()
-        MotionStarting()
-        DomeCommand(TxString)
+        Throw New ASCOM.MethodNotImplementedException("SlewToAltitude")
+        'TL.LogMessage("SlewToAltitude", Convert.ToString(Altitude))
+        'alt = Math.Round(Altitude, 1)
+        ''alt = 90 - alt
+        'If alt > 90 Then
+        ' Throw New ASCOM.InvalidValueException
+        'End If
+        'If alt < 0 Then
+        'Throw New ASCOM.InvalidValueException
+        'End If
+        'TxString = "f " & alt.ToString()
+        'MotionStarting()
+        'DomeCommand(TxString)
         Return
     End Sub
 
@@ -709,7 +771,7 @@ Public Class Dome
     ''' <summary>
     ''' send a command to the dome controller, marking our timestamp for further command pacing
     ''' </summary>
-    Private Sub DomeCommand(ByVal Command As String)
+    Public Sub DomeCommand(ByVal Command As String)
         ' timestamp our last command to help with command pacing
         TicksLastCommand = My.Computer.Clock.TickCount
         CommandString(Command)
@@ -727,6 +789,13 @@ Public Class Dome
         isCalibrating = False
 
         Return
+    End Sub
+
+    Friend Sub SetLowCutoff(Cutoff As Integer)
+        Dim TxString As String
+        TxString = "k " & Cutoff.ToString()
+        DomeCommand(TxString)
+
     End Sub
     ''' <summary>
     ''' Read the entire status of the dome
@@ -776,10 +845,35 @@ Public Class Dome
         If DomeShutterState = ShutterState.shutterClosing Or DomeShutterState = ShutterState.shutterOpening Then
             ' The shutter is in motion
             isSlewing = True
-            ' 
             Return
         End If
 
+
+        If DomeShutterState = ShutterState.shutterOpen Then
+            If ShutterAlt < 90.0 Then
+                ' The only way this can happen, if a movement was started, then stopped
+                ' with an abort, so shutter is not open or closed, but somewhere in between
+                ' Since we are now advertising an all or nothing shutter to ascom, we have to 
+                ' report this as an unknown state
+                DomeShutterState = ShutterState.shutterError
+            End If
+        End If
+
+        ' see if a shutter has talked to us
+        If DomeShutterState = ShutterState.shutterError Then
+            If FoundShutter = True Then
+                ShutterFirmwareVersion = ""
+                FoundShutter = False
+                DomeCommand("v")
+            End If
+        Else
+            ' and we dont have a firmware version for it
+            If FoundShutter = False Then
+                ' lets get firmware versions
+                DomeCommand("v")
+            End If
+
+        End If
         ' neither the dome or shutter are in motions
         ' so slewing now becomes false
         isSlewing = False
@@ -802,7 +896,7 @@ Public Class Dome
             End If
         End If
         DomeCommand("k")    ' Read power status
-        DomeCommand("t")    ' ask how many steps it takes for a full revolution
+        'DomeCommand("t")    ' ask how many steps it takes for a full revolution
         If HomePosition = 0 Then
             ' either the home position hasn't been set, or, we just started up and have not read it yet
             ' in either case, ask the controller where home should be
@@ -813,6 +907,36 @@ Public Class Dome
             ' in either case, ask the controller where park should be
             DomeCommand("n")
         End If
+        If IsReversed = -1 Then
+            ' if we have not read the reversed flag, read it now
+            DomeCommand("y")
+        End If
+        ' read sleep timer
+        DomeCommand("r")
+
+    End Sub
+
+    Friend Sub SetSleepTimer(r As Integer)
+        Dim TxString As String
+        TxString = "r " & r.ToString()
+        DomeCommand(TxString)
+    End Sub
+
+    Friend Sub SetReversed(r As Integer)
+        Dim TxString As String
+        TL.LogMessage("Set Reversed", r.ToString())
+        If r > 1 Then
+            Throw New ASCOM.InvalidValueException
+        End If
+        If r < 0 Then
+            Throw New ASCOM.InvalidValueException
+        End If
+        TxString = "y " & r.ToString()
+        DomeCommand(TxString)
+        ' we have sent the command to set the home
+        ' lets read the home position now, make sure it stuck
+        ' dont have to do this, it comes back in the set response
+        'DomeCommand("i")
 
     End Sub
 
@@ -839,7 +963,7 @@ Public Class Dome
     Friend Sub SetParkPosition(Azimuth As Double)
         Dim TxString As String
         Dim az As Double
-        TL.LogMessage("Set Home Position", Azimuth.ToString())
+        TL.LogMessage("Set Park Position", Azimuth.ToString())
         az = Math.Round(Azimuth, 1)
         If az < 0 Then
             Throw New ASCOM.InvalidValueException
@@ -849,12 +973,13 @@ Public Class Dome
         End If
         TxString = "l " & az.ToString()
         DomeCommand(TxString)
-        ' we have sent the command to set the home
+        ' we have sent the command to set the park
         ' lets read the park position now, make sure it stuck
         ' dont actually have to do it, it comes back in the set response
         'DomeCommand("i")
 
     End Sub
+
     Friend Sub CalibrateDome()
         TL.LogMessage("NexDome Calibrate", "Start")
         DomeCommand("c")   ' send the calibrate
@@ -930,8 +1055,8 @@ Public Class Dome
             comPort = driverProfile.GetValue(driverID, comPortProfileName, String.Empty, comPortDefault)
             'res = driverProfile.GetValue(driverID, ParkProfileName, String.Empty, "0")
             'ParkPosition = Convert.ToDouble(res)
-            res = driverProfile.GetValue(driverID, SyncHomeProfileName, String.Empty, "False")
-            SyncOnHome = Convert.ToBoolean(res)
+            'res = driverProfile.GetValue(driverID, SyncHomeProfileName, String.Empty, "False")
+            'SyncOnHome = Convert.ToBoolean(res)
             ' Not storeing this in the profile because it's stored in the eeprom on the dome controller
             'res = driverProfile.GetValue(driverID, HomeProfileName, String.Empty, "0")
             'HomePosition = Convert.ToDouble(res)
@@ -947,7 +1072,7 @@ Public Class Dome
             driverProfile.WriteValue(driverID, traceStateProfileName, traceState.ToString())
             driverProfile.WriteValue(driverID, comPortProfileName, comPort.ToString())
             'driverProfile.WriteValue(driverID, ParkProfileName, ParkPosition.ToString())
-            driverProfile.WriteValue(driverID, SyncHomeProfileName, SyncOnHome.ToString())
+            'driverProfile.WriteValue(driverID, SyncHomeProfileName, SyncOnHome.ToString())
             'driverProfile.WriteValue(driverID, HomeProfileName, HomePosition.ToString())
         End Using
 

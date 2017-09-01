@@ -38,7 +38,7 @@ Name: "{cf}\ASCOM\Uninstall\Dome\NexDome"
 Name: source; Description: Install the Source files; Flags: unchecked
 
 [Files]
-Source: "C:\Users\gerry\NexDome\windows\ascom-sources\bin\Release\ASCOM.NexDome.Dome.dll"; DestDir: "{app}"
+Source: "C:\Users\gerry\NexDome\windows\ascom-sources\bin\x86\Release\ASCOM.NexDome.Dome.dll"; DestDir: "{app}"
 ; Require a read-me HTML to appear after installation, maybe driver's Help doc
 Source: "C:\Users\gerry\NexDome\README.txt"; DestDir: "{app}"; Flags: isreadme
 ; Optional source files (COM and .NET aware)
