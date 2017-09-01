@@ -30,6 +30,7 @@ Public Class SetupForm
     Private CalCounter As Integer = 0
     Private isCalibrating As Boolean = False
     Private doneCalibrating As Boolean = False
+    Private TimeSinceWake As Integer = 0
 
     Public MyDome As Dome
 
@@ -37,6 +38,8 @@ Public Class SetupForm
                                            ByVal myEventArgs As EventArgs) _
                                        Handles myTimer.Tick
 
+
+        Dim ti As Integer
         'Beep()
 
         'BatteryVoltsDisplay.Text = Convert.ToString(Dome.BatteryVoltage)
@@ -47,13 +50,17 @@ Public Class SetupForm
         Else
             CalibrateButton.Enabled = False
         End If
-        BaseVolts.Text = Convert.ToString(Dome.BatteryVoltage)
-        ShutterVolts.Text = Convert.ToString(Dome.ShutterVoltage)
-        If doneCalibrating Then
-            DomeAzimuth.Text = Convert.ToString(Dome.StepsPerDomeTurn)
-        Else
-            DomeAzimuth.Text = Convert.ToString(Dome.CurrentAzimuth)
-        End If
+        BaseVolts.Text = Convert.ToString(Dome.BatteryVoltage / 100)
+        ShutterVolts.Text = Convert.ToString(Dome.ShutterVoltage / 100)
+        'LowVoltage.Text = Convert.ToString(Dome.LowVoltageCutoff / 100)
+        BaseFirmware.Text = Dome.DomeFirmwareVersion
+        ShutterFirmware.Text = Dome.ShutterFirmwareVersion
+
+        'If doneCalibrating Then
+        'DomeAzimuth.Text = Convert.ToString(Dome.StepsPerDomeTurn)
+        'Else
+        'DomeAzimuth.Text = Convert.ToString(Dome.CurrentAzimuth)
+        'End If
         If Dome.isHoming Then
             StatusLine.Text = "Finding Home"
         Else
@@ -67,7 +74,7 @@ Public Class SetupForm
                         isCalibrating = False
                         doneCalibrating = True
                         HomeButton.Text = "Home"
-                        AzimuthBox.Text = "Calibration"
+                        'AzimuthBox.Text = "Calibration"
                     End If
                 Else
                     If Dome.isAtPark Then
@@ -83,6 +90,18 @@ Public Class SetupForm
             'StatusLine.Text = "At Home"
         Else
             CalibrateButton.Enabled = False
+        End If
+        TimeSinceWake = TimeSinceWake + 1
+        ' The sleep timer is in 1/1000 of a second
+        ' if it more than half expired since the last wakeup
+        ' send another wakeup
+        ti = Dome.ShutterSleepTimer
+        ti = ti / 1000
+        ti = ti / 2
+
+        If (TimeSinceWake > ti) Then
+            MyDome.DomeCommand("x")
+            TimeSinceWake = 0
         End If
 
     End Sub
@@ -101,10 +120,21 @@ Public Class SetupForm
         ha = Convert.ToDouble(ParkAzimuth.Text)
         MyDome.SetParkPosition(ha)
 
-        If SyncCheckbox.Checked Then
-            Dome.SyncOnHome = True
+        ha = Convert.ToDouble(LowVoltage.Text)
+        ha = ha * 100
+        'If (ha <> MyDome.LowVoltageCutoff) Then
+        MyDome.SetLowCutoff(ha)
+
+        ha = Convert.ToDouble(SleepTimer.Text)
+        ha = ha * 1000
+        MyDome.SetSleepTimer(ha)
+
+        'End If
+
+        If ReverseCheckbox.Checked Then
+            MyDome.SetReversed(1)
         Else
-            Dome.SyncOnHome = False
+            MyDome.SetReversed(0)
         End If
 
         myTimer.Stop()
@@ -114,15 +144,24 @@ Public Class SetupForm
     End Sub
 
     Private Sub InitUI()
+        Dim lv As Double
         ParkAzimuth.Text = Dome.ParkPosition.ToString()
         HomePosition.Text = Dome.HomePosition.ToString()
-        If Dome.SyncOnHome Then
-            SyncCheckbox.Checked = True
+        lv = Dome.LowVoltageCutoff / 100
+        LowVoltage.Text = lv.ToString()
+        BaseFirmware.Text = Dome.DomeFirmwareVersion
+        ShutterFirmware.Text = Dome.ShutterFirmwareVersion
+        lv = Dome.ShutterSleepTimer
+        lv = lv / 1000
+        SleepTimer.Text = lv.ToString()
+        If Dome.IsReversed = 1 Then
+            ReverseCheckbox.Checked = True
         Else
-            SyncCheckbox.Checked = False
+            ReverseCheckbox.Checked = False
         End If
         isCalibrating = False
-
+        MyDome.DomeCommand("x")
+        TimeSinceWake = 0
         myTimer.Interval = 1000
         myTimer.Start()
 
@@ -132,11 +171,11 @@ Public Class SetupForm
         CalCounter = 0
         isCalibrating = True
         doneCalibrating = False
-        AzimuthBox.Text = "Dome Azimuth"
+        'AzimuthBox.Text = "Dome Azimuth"
         HomeButton.Text = "Abort"
 
         ' do not sync on the home position while we are calibrating
-        SyncCheckbox.Checked = False
+        ReverseCheckbox.Checked = False
         Dome.SyncOnHome = False
 
         MyDome.CalibrateDome()
@@ -160,14 +199,30 @@ Public Class SetupForm
             MyDome.FindHome()
         End If
         isCalibrating = False
-        AzimuthBox.Text = "Dome Azimuth"
+        'AzimuthBox.Text = "Dome Azimuth"
     End Sub
 
-    Private Sub SyncCheckbox_CheckedChanged(sender As Object, e As EventArgs) Handles SyncCheckbox.CheckedChanged
-        If SyncCheckbox.Checked = True Then
+    Private Sub SyncCheckbox_CheckedChanged(sender As Object, e As EventArgs) Handles ReverseCheckbox.CheckedChanged
+        If ReverseCheckbox.Checked = True Then
             Dome.SyncOnHome = True
         Else
             Dome.SyncOnHome = False
         End If
+    End Sub
+
+    Private Sub GroupBox2_Enter(sender As Object, e As EventArgs)
+
+    End Sub
+
+    Private Sub GroupBox1_Enter(sender As Object, e As EventArgs) Handles GroupBox1.Enter
+
+    End Sub
+
+    Private Sub BatteryBox_Enter(sender As Object, e As EventArgs) Handles BatteryBox.Enter
+
+    End Sub
+
+    Private Sub Label3_Click(sender As Object, e As EventArgs) Handles ShutterFirmware.Click
+
     End Sub
 End Class

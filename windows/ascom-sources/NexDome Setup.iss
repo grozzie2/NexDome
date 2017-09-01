@@ -5,13 +5,13 @@
 [Setup]
 AppID={{fb8b4b23-c180-426b-a61a-1fd458544c9e}
 AppName=ASCOM NexDome Dome Driver
-AppVerName=ASCOM NexDome Dome Driver 1.0
-AppVersion=1.0
+AppVerName=ASCOM NexDome Dome Driver 1.1
+AppVersion=1.1
 AppPublisher=Gerry Rozema <gerryr@rozeware.com>
 AppPublisherURL=mailto:gerryr@rozeware.com
 AppSupportURL=http://tech.groups.yahoo.com/group/ASCOM-Talk/
 AppUpdatesURL=http://ascom-standards.org/
-VersionInfoVersion=1.0.0
+VersionInfoVersion=1.1.0
 MinVersion=0,5.0.2195sp4
 DefaultDirName="{cf}\ASCOM\Dome"
 DisableDirPage=yes
@@ -38,7 +38,7 @@ Name: "{cf}\ASCOM\Uninstall\Dome\NexDome"
 Name: source; Description: Install the Source files; Flags: unchecked
 
 [Files]
-Source: "C:\Users\gerry\NexDome\windows\ascom-sources\bin\Release\ASCOM.NexDome.Dome.dll"; DestDir: "{app}"
+Source: "C:\Users\gerry\NexDome\windows\ascom-sources\bin\x86\Release\ASCOM.NexDome.Dome.dll"; DestDir: "{app}"
 ; Require a read-me HTML to appear after installation, maybe driver's Help doc
 Source: "C:\Users\gerry\NexDome\README.txt"; DestDir: "{app}"; Flags: isreadme
 ; Optional source files (COM and .NET aware)

@@ -39,9 +39,9 @@ A0 - Optional analog input for measuring battery voltage
 
 The motor controller has 6 switches which should be configured as follows
 
-To set the microstepping mode to 4
-S1 - On
-S2 - OFF
+To set the microstepping mode to 8
+S1 - OFF
+S2 - On
 S3 - OFF
 
 Set the current to 2.5 peak 2.7 Amp

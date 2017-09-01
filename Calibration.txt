@@ -1,0 +1,69 @@
+For correct operation via computer control, both the dome and the shutter need to be calibrated.  Dome calibration allows for accurate slit alignment.  Shutter calibration is used only for safety timeouts.  For open and close operations, the shutter will normally move until it reaches the magnet sensors at the open and closed positions.  In the event of a sensor failure, the shutter motor will stop turning when it has tried to move far beyond the open and/or close limits.  Shutter calibration is to prevent the situation of a shutter motor continuing to turn 'forever' in the event of a sensor not operating correctly.
+
+Calibrating the Dome:
+
+Calibrating is done from the setup dialog.  A process that will take aproximately 10 minutes.
+
+a) Ensure the software does NOT have the dome set for slaving.  The calibration will fail if the software is sending pointing instructions during this process.
+b) Home the dome, the process must start with the dome at the home sensor.
+c) After the dome reaches the home sensor, the calibrate button will be enabled.  Select calibrate.  The dome will make a full revolution back to the home sensor.
+d) The first calibration will adjust internal variables, and for most applications this is sufficient.  If using a large telescope, a second calibration run at this point will produce a slightly more accurate calibration.  This should only be required for accurate slit alignment using telescopes in the range of 12 inches or larger that have a large distance between the pivot point and the telescope optical center.
+e) After the calibration is complete, the dome will be reporting an azimuth of zero.  Now manually slew the dome to a known heading.
+f) With dome on a known heading, use the sync function to set this heading.
+g) Slew the dome from the computer.  If it turns the wrong way, in the setup dialog, home the dome, select reversed, and repeat the sync procedure.
+
+At this point, the calibration procedure is complete and calibration data will be stored in the rotation controller for future use.  The NexDome controller will calculate the heading of the home sensor based on the sync point.  All future moves that pass the home sensor will resync on the senor after the magnet moves past the sensor.
+
+After removing power from the controller, when it is restarted, the find home functions will automatically resync the dome controller with real world azimuth headings.
+
+Calibrating the Shutter:
+
+Shutter calibration is done using the buttons to manually move the shutter.  After installing the shutter motor and ensuring it has full movement from the closed position to the open position, calibration is strait forward.  Using the manual movement switch, move the shutter to the closed position, identified when the motor stops upon reaching the closed sensor.  Next, use the switch to move the shutter open a short distance, then back to the closed sensor.  Finally, move the shutter all the way open, identified by when the motor stops upon reaching the open sensor.  This sequence will calibrate the shutter and the data will be stored internally in the shutter controller for future reference.
+
+
+Understanding the wireless communication link between the shutter and the dome:
+
+The two controllers, rotation and shutter, operate as a master and slave pair.  The rotation controller is the master, with the shutter operating as a slave.  To conserve battery power, the slave will hibernate it's radio when the shutter motors are not active.  During normal operation the shutter will process commands from the master immediately.  When a shutter move operation has finished, the shutter will wait for a period waiting on new commands, and if none are forthcoming, it will go into hibernate mode.  The duration of this wait is controlled with the 'sleep timer' setting in the dome setup dialogs.  When that timer expires with no new movement commands, the shutter will enter hibernation mode to conserve power.  When in hibernation, the shutter wakes up once every 30 seconds to check for commands and issue status reports to the master.  If the shutter controller is in hibernation when a command to open or close the shutter is recieved by the master, it can take up to 30 seconds before that command reaches the shutter controller and movement starts.  The shutter controller will immediately 'wake up' and start immediate responses while the shutter is in motion.  The shutter is kept awake when the ascom setup dialog is on screen to provide immediate feedback on items such as battery levels.
+
+Dome safety:
+
+There are numerous safety mechanisms built into the system to prevent the situation of a dome being left open accidentally due to power outages or any other unusual circumstances.  All of these safety mechanisms are designed to prevent the situation of an automated and unattended system from accidentally leaving a telescope exposed to the elements when something goes amiss.  Manual operation of the shutter and rotator overrides the safety mechanisms, they are only active when the system is being driven by a computer.  The assumption is, if the shutter and rotator are manually operated, then the system is not unattended, so no safety timeouts are necessary, or desired.  If the shutter is manually opened and the dome is manually rotated, it will stay open until manually closed if there is no computer connected to the master controller issuing dome control commands.  This is a VERY important point to understand, if you manually operate the dome, it will STAY OPEN until closed manually.  The shutter safety mechanisms will NOT trigger if the dome was opened and rotated manually then left open.  This is intentionally designed in this manner so that it is possible to go out to the dome, open the shutter manually and use the telescope without the shutter closing on a schedule due to the internal safety mechanisms.  After commands to rotate AND manipulate the shutter are sent from a host computer, all of the safety timeouts will be re-engaged.
+ 
+
+IF YOU OPERATE THE DOME MANUALLY, YOU MUST CLOSE IT MANUALLY.  If the intention is to leave an automated session after manually opening, you should close the dome, then open it from the computer before leaving.  If the computer has not issued motion commands for both the dome and the shutter before you leave, the safety mechanisms will be off until it does.
+
+This is very important to understand during the installation process.  If you do not manually rotate the dome with the switch on the rotator before starting the shutter install, the rotator will time out and start sending close commands to the shutter.
+
+The safety timeouts do not rotate the dome, they just close the shutter.  The intent is to protect the gear from weather in abnormal circumstances.
+
+The built in safety mechanisms:
+
+1)  Shutter battery low
+
+The shutter controller monitors the battery level.  In the setup dialog there is field for setting up the 'shutter safety' voltage.  If battery voltage drops below this value, the shutter will close and ignore any commands to re-open until the battery is recharged.  This safety is designed to prevent the shutter from being left open because the battery discharged completely while open, with no power left in the battery to operate the motors for closing.  If the battery is low, the shutter will not respond to an open request from the master controller.  The shutter will respond to the buttons with a low battery, you can force it open using the buttons while the battery is low, but it cannot be opened from the computer when the battery is low.  When the shutter has been operated manually, this battery low safety will be disabled.
+
+2)  Shutter communication timeout
+
+During normal running with the shutter open, the shutter controller will communicate every 30 seconds (more frequently when the shutter is in motion) to the master controller with a status report.  If a period of 60 seconds passes with no query from the master, the shutter will close.  This is to prevent the situation of a shutter left open after the host system loses power, or stops communicating for any other reasons.  This safety is disabled by the motion switch on the shutter controller.
+
+3)  Master communication timeout
+
+The rotation controller is the system master, and is normally driven by a pc.  When the shutter is open, the master controller will reset a timer on each communication cycle with the host pc.  This is a 5 minute timer, and if it expires with no communication from the host, the shutter will be issued a close command.  This safety is designed to ensure a shutter is not left open and the telescope exposed to the elements if the controlling software stops operating for any reason, be it a power outage, hardware or software failure of some type on the host computer.
+
+
+
+Testing the dome safeties is easy, and strongly advised that each mechanism is tested individually before leaving the system for unattended operation.  This ensures that the safties are indeed working at your location, and, will give you peace of mind after seeing each of them trigger, so you understand what the risks are for unattended and automated operation.  All of these tests must be done by selecting controls on the computer, keeping in mind, manually controlling the shutter or rotator overrides the safeties and turns them off.
+
+1 - Testing the battery low condition.
+
+Start with the shutter open.  With the setup dialog on your screen, it shows the voltage currently being measured at the base, and at the shutter.  Beside those fields is the shutter safety voltage field.  If the shutter is showing 12.5 or so volts for a fully charged battery, set the safety value to a higher number like 13.5 volts and dismiss the dialog.  This new value is not stored until you dismiss the dialog with the OK button.  Now watching your dome control software, in a short period, you should see the shutter change to closing state, and once closed, it will show as such.  After the shutter reaches the closed condition, select open.  The status will show opening for a few seconds, then change back to closed.  What has happened, the master has issued the open command, but the shutter has sent back a message saying it will not open.  Now go back to the setup dialog, change the shutter safety voltage to a more realistic number, below the current battery level.  After making that change, try again to open the shutter, and it should accept the open command, and open.  A setting in the vicinity of 10.5 volts will cause the shutter to close when there is still enough power left in the battery to move the shutter to the fully closed position.
+
+2 - Testing the shutter communication timeout.
+
+Start by opening the shutter from the computer.  Next, remove the power from the rotation controller, AND unplug it from the computer.  If you leave it plugged into the computer, the usb provides enough power to keep the xbee link active between the rotator and the shutter.  But removing both the 12V power and the usb power will ensure the link is broken.  After a few minutes, the shutter should close on it's own.  This timing is highly dependant on the hibernate mode the shutter is in at the time, so it will vary by up to a minute on successive tests.
+
+3 - Testing the master communication timeout.
+
+Plug the rotator back into the 12V supply, and into the usb on the host computer.  Start the control software again, and open the dome.  After the dome is open, shut down the computer running it to simulate a full crash of all programs running.  After 2 minutes, the shutter should close on it's own.  The two minute timeframe will be slightly extended if the shutter is hibernated, which can add up to 30 seconds to the time till shutter closes.
+
+
