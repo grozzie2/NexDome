@@ -5,13 +5,13 @@
 [Setup]
 AppID={{fb8b4b23-c180-426b-a61a-1fd458544c9e}
 AppName=ASCOM NexDome Dome Driver
-AppVerName=ASCOM NexDome Dome Driver 1.0
-AppVersion=1.0
+AppVerName=ASCOM NexDome Dome Driver 1.1
+AppVersion=1.1
 AppPublisher=Gerry Rozema <gerryr@rozeware.com>
 AppPublisherURL=mailto:gerryr@rozeware.com
 AppSupportURL=http://tech.groups.yahoo.com/group/ASCOM-Talk/
 AppUpdatesURL=http://ascom-standards.org/
-VersionInfoVersion=1.0.0
+VersionInfoVersion=1.1.0
 MinVersion=0,5.0.2195sp4
 DefaultDirName="{cf}\ASCOM\Dome"
 DisableDirPage=yes
