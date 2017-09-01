@@ -117,7 +117,11 @@
 
 // set this to match the type of steps configured on the
 // stepper controller
+#ifndef BIG_EASY
 #define STEP_TYPE 8
+#else
+#define STEP_TYPE 16
+#endif
 
 #define MOVE_INC 5000
 
