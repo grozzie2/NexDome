@@ -117,8 +117,9 @@
 
 // set this to match the type of steps configured on the
 // stepper controller
-#define MOVE_INC 5000
 #define STEP_TYPE 8
+
+#define MOVE_INC 5000
 
 
 //  For reading our input voltage
@@ -318,6 +319,7 @@ int NexDome::SetStepsPerDomeTurn(long int steps)
 
   //Computer.println("Setting steps per turn to ");
   //Computer.println(steps);
+
   StepsPerDomeTurn=steps;
   StepsPerSecond=StepsPerDomeTurn/DOME_TURN_TIME;
   if(StepsPerSecond < 2000) StepsPerSecond=2000;
@@ -566,7 +568,7 @@ int NexDome::AtHome()
       //  we often get a second hit on the other edge
       //  when we were stopped within the magnet range
       //  if calibrating, ignore a hit that comes to quickly
-      if(LastHomeCount < 5000) {
+      if(LastHomeCount < MOVE_INC) {
         //Computer.println("Ignore spurios home hit while calibrating");
         return 0;
       }
@@ -601,7 +603,7 @@ void NexDome::Calibrate()
 {
   HomeAzimuth=0;
   accelStepper.setCurrentPosition(0);
-  MoveTo(CurrentPosition() + 5000);
+  MoveTo(CurrentPosition() + MOVE_INC);
   Calibrating=true;
   FindingHome=true;
 }
@@ -1417,9 +1419,9 @@ void loop() {
   }
   if(Dome.FindingHome) {
     if(SenseRising) {
-      Dome.MoveTo(Dome.CurrentPosition()+5000);
+      Dome.MoveTo(Dome.CurrentPosition()+MOVE_INC);
     } else {
-      Dome.MoveTo(Dome.CurrentPosition()-5000);
+      Dome.MoveTo(Dome.CurrentPosition()-MOVE_INC);
     }
   }
   //  Now things are all initialized, we just get down to the nitty gritty of running a dome
