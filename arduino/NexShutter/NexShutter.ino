@@ -37,7 +37,7 @@
  * allows for bench testing drivers without physical hardware
  * set up
  */
-#define BENCH_TEST 1
+//#define BENCH_TEST 1
 
 /*
  *   Defining which pins for serial gets tricky
@@ -61,8 +61,8 @@
 //  Step line for the stepper driver
 #define STP 12
 //  Our two buttons for manual movement
-#define BUTTON_OPEN 5
-#define BUTTON_CLOSE 6
+#define BUTTON_OPEN 6
+#define BUTTON_CLOSE 5
 
 #define CLOSED_SWITCH 2
 #define OPEN_SWITCH 3
@@ -617,6 +617,7 @@ void setup() {
   pinMode(CLOSED_SWITCH,INPUT_PULLUP);
   pinMode(BUTTON_OPEN,INPUT_PULLUP);
   pinMode(BUTTON_CLOSE,INPUT_PULLUP);
+  
 
   pinMode(STP, OUTPUT);
   pinMode(DIR, OUTPUT);
@@ -838,7 +839,9 @@ bool ProcessCommandBuffer(char *cbuf, Serial_ *responder)
   
   /*  restart xbee wireless */
   if(cbuf[0]=='w') {
-    responder->println("W");
+    responder->print("W ");
+    if(FoundXbee) responder->println("Online");
+    else responder->println("Offline");
     ConfigureWireless();
     return true;
   }
@@ -1023,11 +1026,11 @@ void ProcessWirelessData()
             //  hexadecimal number for time in tens of milliseconds
             if(HibernateRadio) {
               Wireless.println("ATSP5DC");
-              Computer.println("Setting long sleep period");
+              //Computer.println("Setting long sleep period");
               RadioLongSleep=true;
             } else {
               Wireless.println("ATSP32");
-              Computer.println("Setting short sleep period");
+              //Computer.println("Setting short sleep period");
               RadioLongSleep=false;
             }
             break;
