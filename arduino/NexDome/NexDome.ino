@@ -30,11 +30,13 @@
 
 
 //  dev stuff
-#define BIG_EASY
-#define CUSTOM_GEARS
+// #define BIG_EASY
+// #define CUSTOM_GEARS
+#ifdef BIG_EASY
 #define MS1 4
 #define MS2 7
 #define MS3 13
+#endif
 
 #define VERSION_MAJOR 1
 #define VERSION_MINOR 10

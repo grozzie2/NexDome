@@ -37,7 +37,8 @@
  * allows for bench testing drivers without physical hardware
  * set up
  */
-#define BENCH_TEST 1
+// #define BENCH_TEST 1
+// #define BIG_EASY
 
 /*
  *   Defining which pins for serial gets tricky
@@ -95,7 +96,11 @@
 #endif
 // set this to match the type of steps configured on the
 // stepper controller
+#ifndef BIG_EASY
 #define STEP_TYPE 8
+#else
+#define STEP_TYPE 16
+#endif
 
 //  Set up a default for the communication timeout
 //  for 5 minutes, we get 300000 millis
@@ -701,6 +706,12 @@ void setup() {
    //  character that wakes it up
    ConfigureWireless();
    CheckBattery();
+
+#ifdef BIG_EASY
+	digitalWrite(MS1,HIGH);
+	digitalWrite(MS2,HIGH);
+	digitalWrite(MS3,HIGH);
+#endif
 
 }
 
