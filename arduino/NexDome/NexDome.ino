@@ -30,8 +30,8 @@
 
 
 //  dev stuff
-// #define BIG_EASY
-// #define CUSTOM_GEARS
+#define BIG_EASY
+#define CUSTOM_GEARS
 #define MS1 4
 #define MS2 7
 #define MS3 13
@@ -709,6 +709,13 @@ void setup() {
   Dome.SetStepsPerDomeTurn(StepsPerDomeTurn);
 
   Dome.ReadConfig();
+
+	if(StepsPerDomeTurn == 0) {
+		MotorTurnsPerDomeTurn = (float)DOME_TEETH / (float) GEAR_TEETH;
+		StepsPerGearTurn=200.0*(float)REDUCTION_GEAR*(float)STEP_TYPE;
+		StepsPerDomeTurn=MotorTurnsPerDomeTurn*StepsPerGearTurn;
+		StepsPerDegree=StepsPerDomeTurn/360;
+	}
 
   //Computer.print(Dome.StepsPerDomeTurn);
   //Computer.println(" steps per dome turn");
