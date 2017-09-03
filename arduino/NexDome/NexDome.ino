@@ -667,7 +667,7 @@ void setup() {
   float MotorTurnsPerDomeTurn;
   float StepsPerGearTurn;
   long int StepsPerDomeTurn;
-  ling int StepsPerDomeTurnTmp;
+  long int StepsPerDomeTurnTmp;
   //float StepsPerSecond;
   long int StepsPerDegree;
 
