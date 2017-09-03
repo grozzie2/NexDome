@@ -667,6 +667,7 @@ void setup() {
   float MotorTurnsPerDomeTurn;
   float StepsPerGearTurn;
   long int StepsPerDomeTurn;
+  ling int StepsPerDomeTurnTmp;
   //float StepsPerSecond;
   long int StepsPerDegree;
 
@@ -710,13 +711,11 @@ void setup() {
   Dome.DisableMotor();
   Dome.SetStepsPerDomeTurn(StepsPerDomeTurn);
 
+  StepsPerDomeTurnTmp = StepsPerDomeTurn;
   Dome.ReadConfig();
 
 	if(StepsPerDomeTurn == 0) {
-		MotorTurnsPerDomeTurn = (float)DOME_TEETH / (float) GEAR_TEETH;
-		StepsPerGearTurn=200.0*(float)REDUCTION_GEAR*(float)STEP_TYPE;
-		StepsPerDomeTurn=MotorTurnsPerDomeTurn*StepsPerGearTurn;
-		StepsPerDegree=StepsPerDomeTurn/360;
+		StepsPerDomeTurn = StepsPerDomeTurnTmp;
 	}
 
   //Computer.print(Dome.StepsPerDomeTurn);
