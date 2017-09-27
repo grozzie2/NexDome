@@ -30,8 +30,9 @@
 
 
 //  dev stuff
-// #define BIG_EASY
-// #define CUSTOM_GEARS
+#define BIG_EASY
+#define CUSTOM_GEARS
+
 #ifdef BIG_EASY
 #define MS1 4
 #define MS2 7
@@ -254,11 +255,7 @@ NexDome::NexDome()
   HomeAzimuth=0;  //  an uncalibrated dome
   ParkAzimuth=180;
   HasBeenHome=false;
-#ifndef BIG_EASY
 	accelStepper.setPinsInverted(true,false,false);
-#else
-	accelStepper.setPinsInverted(false,false,false);
-#endif
   memset(ShutterVersion,0,SHUTTER_VERSION_LENGTH);
 }
 
@@ -630,11 +627,16 @@ void HomeInterrupt()
   int a;
   int b;
   a=digitalRead(HOME);
-  //b=digitalRead(HOME);
+  b=digitalRead(HOME);
+  // isrstate[0]=a;
+  // isrstate[1]=b;
+  //HomeSensor=true;
+  //return;
+
   if(SenseRising) {
-    if(a==1) HomeSensor=true;
-  } else {
     if(a==0) HomeSensor=true;
+  } else {
+    if(a==1) HomeSensor=true;
   }
   //if(a==0) {
     //Computer.println("Home Sensor");
@@ -643,6 +645,7 @@ void HomeInterrupt()
     //HomeSensor=true;
   //}
 }
+
 /*
 void OtherInterrupt()
 {
