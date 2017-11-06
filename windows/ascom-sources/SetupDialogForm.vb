@@ -92,16 +92,30 @@ Public Class SetupForm
             CalibrateButton.Enabled = False
         End If
         TimeSinceWake = TimeSinceWake + 1
-        ' The sleep timer is in 1/1000 of a second
-        ' if it more than half expired since the last wakeup
-        ' send another wakeup
-        ti = Dome.ShutterSleepTimer
-        ti = ti / 1000
-        ti = ti / 2
 
-        If (TimeSinceWake > ti) Then
-            MyDome.DomeCommand("x")
-            TimeSinceWake = 0
+
+        ' This is important.  If the DomeCommand("x") is issued while the dome is
+        ' calibrating or homing the calibration/homing will never end, it continues foreever.
+        ' This will also throw an occasional unhandled exception and then all bets are off.
+        If Not (Dome.isCalibrating Or Dome.isHoming) Then
+
+            ' The sleep timer is in 1/1000 of a second
+            ' if it more than half expired since the last wakeup
+            ' send another wakeup
+            ti = Dome.ShutterSleepTimer
+            ti = ti / 1000
+            ti = ti / 2
+
+            If (TimeSinceWake > ti) Then
+                Try
+                    MyDome.DomeCommand("x")
+                    TimeSinceWake = 0
+                Catch ex As Exception
+                    ' Handling the random unhandle exception.  
+                    ' Should log it somewhere?
+                End Try
+            
+            End If
         End If
 
     End Sub
