@@ -91,32 +91,6 @@ Public Class SetupForm
         Else
             CalibrateButton.Enabled = False
         End If
-        TimeSinceWake = TimeSinceWake + 1
-
-
-        ' This is important.  If the DomeCommand("x") is issued while the dome is
-        ' calibrating or homing the calibration/homing will never end, it continues foreever.
-        ' This will also throw an occasional unhandled exception and then all bets are off.
-        If Not (Dome.isCalibrating Or Dome.isHoming) Then
-
-            ' The sleep timer is in 1/1000 of a second
-            ' if it more than half expired since the last wakeup
-            ' send another wakeup
-            ti = Dome.ShutterSleepTimer
-            ti = ti / 1000
-            ti = ti / 2
-
-            If (TimeSinceWake > ti) Then
-                Try
-                    MyDome.DomeCommand("x")
-                    TimeSinceWake = 0
-                Catch ex As Exception
-                    ' Handling the random unhandle exception.  
-                    ' Should log it somewhere?
-                End Try
-            
-            End If
-        End If
 
     End Sub
 
@@ -126,30 +100,11 @@ Public Class SetupForm
 
     Private Sub OK_Button_Click(sender As Object, e As EventArgs) Handles OK_Button.Click
         ' Persist new values of user settings to the ASCOM profile
-        Dim ha As Double
-
-        ha = Convert.ToDouble(HomePosition.Text)
-        MyDome.SetHomePosition(ha)
-
-        ha = Convert.ToDouble(ParkAzimuth.Text)
-        MyDome.SetParkPosition(ha)
-
-        ha = Convert.ToDouble(LowVoltage.Text)
-        ha = ha * 100
-        'If (ha <> MyDome.LowVoltageCutoff) Then
-        MyDome.SetLowCutoff(ha)
-
-        ha = Convert.ToDouble(SleepTimer.Text)
-        ha = ha * 1000
-        MyDome.SetSleepTimer(ha)
-
-        'End If
-
-        If ReverseCheckbox.Checked Then
-            MyDome.SetReversed(1)
-        Else
-            MyDome.SetReversed(0)
-        End If
+        MyDome.SetHomePosition(Convert.ToDouble(HomePosition.Text))
+        MyDome.SetParkPosition(Convert.ToDouble(ParkAzimuth.Text))
+        MyDome.SetLowCutoff(Convert.ToDouble(LowVoltage.Text) * 100)
+        MyDome.SetSleepTimer(Convert.ToDouble(SleepTimer.Text) * 1000)
+        MyDome.SetReversed(If(ReverseCheckbox.Checked, 1, 0))
 
         myTimer.Stop()
         Me.DialogResult = System.Windows.Forms.DialogResult.OK
@@ -157,25 +112,18 @@ Public Class SetupForm
 
     End Sub
 
-    Private Sub InitUI()
-        Dim lv As Double
+  Private Sub InitUI()
+        ' Read values from ASCOM profile
         ParkAzimuth.Text = Dome.ParkPosition.ToString()
         HomePosition.Text = Dome.HomePosition.ToString()
-        lv = Dome.LowVoltageCutoff / 100
-        LowVoltage.Text = lv.ToString()
+        LowVoltage.Text = (Dome.LowVoltageCutoff / 100).ToString()
         BaseFirmware.Text = Dome.DomeFirmwareVersion
         ShutterFirmware.Text = Dome.ShutterFirmwareVersion
-        lv = Dome.ShutterSleepTimer
-        lv = lv / 1000
-        SleepTimer.Text = lv.ToString()
-        If Dome.IsReversed = 1 Then
-            ReverseCheckbox.Checked = True
-        Else
-            ReverseCheckbox.Checked = False
-        End If
+        SleepTimer.Text = (Dome.ShutterSleepTimer / 1000).ToString()
+        ReverseCheckbox.Checked = If(Dome.IsReversed = 1, True, False)
+
         isCalibrating = False
         MyDome.DomeCommand("x")
-        TimeSinceWake = 0
         myTimer.Interval = 1000
         myTimer.Start()
 
@@ -224,19 +172,5 @@ Public Class SetupForm
         End If
     End Sub
 
-    Private Sub GroupBox2_Enter(sender As Object, e As EventArgs)
 
-    End Sub
-
-    Private Sub GroupBox1_Enter(sender As Object, e As EventArgs) Handles GroupBox1.Enter
-
-    End Sub
-
-    Private Sub BatteryBox_Enter(sender As Object, e As EventArgs) Handles BatteryBox.Enter
-
-    End Sub
-
-    Private Sub Label3_Click(sender As Object, e As EventArgs) Handles ShutterFirmware.Click
-
-    End Sub
 End Class
