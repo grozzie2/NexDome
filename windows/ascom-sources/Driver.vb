@@ -208,150 +208,155 @@ Public Class Dome
         Throw New MethodNotImplementedException("CommandBool")
     End Function
 
+    Private commandLocker As object = New object
     Public Function CommandString(ByVal Command As String, Optional ByVal Raw As Boolean = False) As String _
         Implements IDomeV2.CommandString
         'CheckConnected("CommandString")
-        ' it's a good idea to put all the low level communication with the device here,
-        ' then all communication calls this function
-        ' you need something to ensure that only one command is in progress at a time
-        Dim TxString, RxString, Result As String
-        ' start by flushing any leftovers in serial buffers
-        SerialPort.ClearBuffers()
-        TxString = Command & Chr(10)
-        ' send a command
-        SerialPort.Transmit(TxString)
-        ' get the response first char which tells us what is being reported
-        Result = SerialPort.ReceiveCounted(1)
-        ' now get the rest of what came in the response
-        RxString = SerialPort.ReceiveTerminated(Chr(10))
 
-        TL.LogMessage("CommandString", Result & RxString)
+        SyncLock commandLocker
+            ' it's a good idea to put all the low level communication with the device here,
+            ' then all communication calls this function
+            ' you need something to ensure that only one command is in progress at a time
+            Dim TxString, RxString, Result As String
+            ' start by flushing any leftovers in serial buffers
+            SerialPort.ClearBuffers()
+            TxString = Command & Chr(10)
+            ' send a command
+            SerialPort.Transmit(TxString)
+            ' get the response first char which tells us what is being reported
+            Result = SerialPort.ReceiveCounted(1)
+            ' now get the rest of what came in the response
+            RxString = SerialPort.ReceiveTerminated(Chr(10))
+
+            TL.LogMessage("CommandString", Result & RxString)
 
 
-        If Result = "A" Then
-            ' this was an abort command
-            ' reset timers so we dont sit on a bad display for opening/closing states
-            TimeSinceClose = 60
-            TimeSinceOpen = 60
-            Return ""
-        End If
-        If Result = "G" Then
-            ' this was a goto, results will come from azimuth and slewing checks
-            Return ""
-        End If
-        If Result = "Q" Then
-            ' this was a query for current azimuth
-            CurrentAzimuth = Convert.ToDouble(RxString)
-        End If
-        If Result = "U" Then
-            Dim s As Integer
-            ' this was a query for current shutter status
-            s = Convert.ToInt16(RxString)
-            TimeSinceClose = TimeSinceClose + 1
-            TimeSinceOpen = TimeSinceOpen + 1
-            Select Case s
-                Case 1
-                    ' When we get an open or close command, shutter may not pick it up for
-                    ' 30 seconds, so, lets keep the state for 30 seconds after we send the
-                    ' command, makes the displays etc look better
-                    ' improvements in the firmware now mean we only need 5 read
-                    ' to be correct
-                    If TimeSinceClose > 5 Then
-                        DomeShutterState = ShutterState.shutterOpen
-                    End If
-                Case 2
-                    DomeShutterState = ShutterState.shutterOpening
-                Case 3
-                    ' keep the state for 5 seconds after the open/close command
-                    ' to allow wireless links to catch up
-                    'TimeSinceOpen = TimeSinceOpen + 1
-                    If TimeSinceOpen > 5 Then
-                        DomeShutterState = ShutterState.shutterClosed
-                    End If
-                Case 4
-                    DomeShutterState = ShutterState.shutterClosing
-                Case Else
-                    DomeShutterState = ShutterState.shutterError
-            End Select
-
-        End If
-        If Result = "B" Then
-            ' this was a request for the shutter altitude
-            ShutterAlt = Convert.ToDouble(RxString)
-        End If
-        If Result = "Z" Then
-            Dim res As Int16
-            ' this was a request for home position sensor status
-            res = Convert.ToInt16(RxString)
-            If (res = 0) Then
-                isAtHome = False
-            Else
-                isAtHome = True
+            If Result = "A" Then
+                ' this was an abort command
+                ' reset timers so we dont sit on a bad display for opening/closing states
+                TimeSinceClose = 60
+                TimeSinceOpen = 60
+                Return ""
             End If
-        End If
-        If Result = "M" Then
-            Dim m As Int16
-            ' is the dome in motion ?
-            m = Convert.ToInt16(RxString)
-            If m = 0 Then
-                isInMotion = False
-            Else
-                isInMotion = True
+            If Result = "G" Then
+                ' this was a goto, results will come from azimuth and slewing checks
+                Return ""
             End If
-        End If
-        If (Result = "K") Then
-            Dim btest() As String = Split(RxString)
-            BatteryVoltage = Convert.ToDouble(btest(1))
-            ShutterVoltage = Convert.ToDouble(btest(2))
-            LowVoltageCutoff = Convert.ToDouble(btest(3))
-        End If
+            If Result = "Q" Then
+                ' this was a query for current azimuth
+                CurrentAzimuth = Convert.ToDouble(RxString)
+            End If
+            If Result = "U" Then
+                Dim s As Integer
+                ' this was a query for current shutter status
+                s = Convert.ToInt16(RxString)
+                TimeSinceClose = TimeSinceClose + 1
+                TimeSinceOpen = TimeSinceOpen + 1
+                Select Case s
+                    Case 1
+                        ' When we get an open or close command, shutter may not pick it up for
+                        ' 30 seconds, so, lets keep the state for 30 seconds after we send the
+                        ' command, makes the displays etc look better
+                        ' improvements in the firmware now mean we only need 5 read
+                        ' to be correct
+                        If TimeSinceClose > 5 Then
+                            DomeShutterState = ShutterState.shutterOpen
+                        End If
+                    Case 2
+                        DomeShutterState = ShutterState.shutterOpening
+                    Case 3
+                        ' keep the state for 5 seconds after the open/close command
+                        ' to allow wireless links to catch up
+                        'TimeSinceOpen = TimeSinceOpen + 1
+                        If TimeSinceOpen > 5 Then
+                            DomeShutterState = ShutterState.shutterClosed
+                        End If
+                    Case 4
+                        DomeShutterState = ShutterState.shutterClosing
+                    Case Else
+                        DomeShutterState = ShutterState.shutterError
+                End Select
 
-        If Result = "V" Then
-            Dim vtest() As String = Split(RxString)
-
-            ' we are parsing out the version return string
-            ControllerType = 0
-
-            If vtest(0) = "NexDome" Then
-                ' this is a rotation controller
-                ControllerType = 1
-                DomeFirmwareVersion = vtest(2)
-                If vtest(5) IsNot "" Then
-                    ShutterFirmwareVersion = vtest(5)
-                    FoundShutter = True
+            End If
+            If Result = "B" Then
+                ' this was a request for the shutter altitude
+                ShutterAlt = Convert.ToDouble(RxString)
+            End If
+            If Result = "Z" Then
+                Dim res As Int16
+                ' this was a request for home position sensor status
+                res = Convert.ToInt16(RxString)
+                If (res = 0) Then
+                    isAtHome = False
                 Else
-                    FoundShutter = False
-                    ShutterFirmwareVersion = "Not Connected"
-
-                End If
-            Else
-                If vtest(0) = "NexShutter" Then
-                    ' we can get the shutter version from the rotator
-                    ' too
-                    ControllerType = 2
-                    ShutterFirmwareVersion = vtest(2)
+                    isAtHome = True
                 End If
             End If
-            ControllerVersion = vtest(3)
-        End If
+            If Result = "M" Then
+                Dim m As Int16
+                ' is the dome in motion ?
+                m = Convert.ToInt16(RxString)
+                If m = 0 Then
+                    isInMotion = False
+                Else
+                    isInMotion = True
+                End If
+            End If
+            If (Result = "K") Then
+                Dim btest() As String = Split(RxString)
+                BatteryVoltage = Convert.ToDouble(btest(1))
+                ShutterVoltage = Convert.ToDouble(btest(2))
+                LowVoltageCutoff = Convert.ToDouble(btest(3))
+            End If
 
-        If Result = "T" Then
-            StepsPerDomeTurn = Convert.ToInt64(RxString)
-        End If
-        If Result = "I" Then
-            HomePosition = Convert.ToDouble(RxString)
-        End If
-        If Result = "N" Then
-            ParkPosition = Convert.ToDouble(RxString)
-        End If
-        If Result = "Y" Then
-            IsReversed = Convert.ToInt16(RxString)
-        End If
-        If Result = "R" Then
-            ShutterSleepTimer = Convert.ToInt32(RxString)
-        End If
+            If Result = "V" Then
+                Dim vtest() As String = Split(RxString)
 
-        Return ""
+                ' we are parsing out the version return string
+                ControllerType = 0
+
+                If vtest(0) = "NexDome" Then
+                    ' this is a rotation controller
+                    ControllerType = 1
+                    DomeFirmwareVersion = vtest(2)
+                    If vtest(5) IsNot "" Then
+                        ShutterFirmwareVersion = vtest(5)
+                        FoundShutter = True
+                    Else
+                        FoundShutter = False
+                        ShutterFirmwareVersion = "Not Connected"
+
+                    End If
+                Else
+                    If vtest(0) = "NexShutter" Then
+                        ' we can get the shutter version from the rotator
+                        ' too
+                        ControllerType = 2
+                        ShutterFirmwareVersion = vtest(2)
+                    End If
+                End If
+                ControllerVersion = vtest(3)
+            End If
+
+            If Result = "T" Then
+                StepsPerDomeTurn = Convert.ToInt64(RxString)
+            End If
+            If Result = "I" Then
+                HomePosition = Convert.ToDouble(RxString)
+            End If
+            If Result = "N" Then
+                ParkPosition = Convert.ToDouble(RxString)
+            End If
+            If Result = "Y" Then
+                IsReversed = Convert.ToInt16(RxString)
+            End If
+            If Result = "R" Then
+                ShutterSleepTimer = Convert.ToInt32(RxString)
+            End If
+
+            Return ""
+        End SyncLock
+
     End Function
 
     Public Property Connected() As Boolean Implements IDomeV2.Connected
