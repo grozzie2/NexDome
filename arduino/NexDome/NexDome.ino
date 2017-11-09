@@ -599,9 +599,9 @@ void HomeInterrupt()
   a=digitalRead(HOME);
   //b=digitalRead(HOME);
   if(SenseRising) {
-    if(a==1) HomeSensor=true;
-  } else {
     if(a==0) HomeSensor=true;
+  } else {
+    if(a==1) HomeSensor=true;
   }
   //if(a==0) {
     //Computer.println("Home Sensor");
