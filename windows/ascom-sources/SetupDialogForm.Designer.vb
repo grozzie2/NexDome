@@ -238,7 +238,7 @@ Partial Class SetupForm
         Me.GroupBox2.Size = New System.Drawing.Size(182, 60)
         Me.GroupBox2.TabIndex = 10
         Me.GroupBox2.TabStop = False
-        Me.GroupBox2.Text = "Firmware Versions"
+        Me.GroupBox2.Text = "Arduino Firmware Versions"
         '
         'ShutterFirmware
         '
@@ -350,7 +350,7 @@ Partial Class SetupForm
         Me.Controls.Add(Me.OK_Button)
         Me.Name = "SetupForm"
         Me.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent
-        Me.Text = "NexDome Setup"
+        Me.Text = "NexDome ASCOM Setup 1.12"
         Me.HomeBox.ResumeLayout(False)
         Me.HomeBox.PerformLayout()
         Me.ParkBox.ResumeLayout(False)

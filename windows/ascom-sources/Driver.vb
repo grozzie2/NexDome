@@ -219,16 +219,21 @@ Public Class Dome
             ' you need something to ensure that only one command is in progress at a time
             Dim TxString, RxString, Result As String
             ' start by flushing any leftovers in serial buffers
-            SerialPort.ClearBuffers()
-            TxString = Command & Chr(10)
-            ' send a command
-            SerialPort.Transmit(TxString)
-            ' get the response first char which tells us what is being reported
-            Result = SerialPort.ReceiveCounted(1)
-            ' now get the rest of what came in the response
-            RxString = SerialPort.ReceiveTerminated(Chr(10))
+            Try
+                SerialPort.ClearBuffers()
+                TxString = Command & Chr(10)
+                ' send a command
+                SerialPort.Transmit(TxString)
+                ' get the response first char which tells us what is being reported
+                Result = SerialPort.ReceiveCounted(1)
+                ' now get the rest of what came in the response
+                RxString = SerialPort.ReceiveTerminated(Chr(10))
 
-            TL.LogMessage("CommandString", Result & RxString)
+                TL.LogMessage("CommandString", Result & RxString)
+
+            Catch ex As Exception
+                Return ""
+            End Try
 
 
             If Result = "A" Then
