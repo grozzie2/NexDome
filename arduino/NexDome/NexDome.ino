@@ -28,17 +28,6 @@
 #include <AccelStepper.h>
 #include <EEPROM.h>
 
-
-//  dev stuff
-#define BIG_EASY
-#define CUSTOM_GEARS
-
-#ifdef BIG_EASY
-#define MS1 4
-#define MS2 7
-#define MS3 13
-#endif
-
 #define VERSION_MAJOR 1
 #define VERSION_MINOR 10
 
@@ -102,8 +91,10 @@
 //  Our two buttons for manual movement
 #define BUTTON_EAST 5
 #define BUTTON_WEST 6
+// RG-11 rain sensor
+#define RG11  7
 
-#ifndef CUSTOM_GEARS
+
 //  Physical definitions of the gears
 //  This is the gearbox on the motor
 //float ReductionGear=(float)15+((float)3/(float)10);
@@ -111,22 +102,9 @@
 #define DOME_TEETH 288
 #define GEAR_TEETH 15
 #define DOME_TURN_TIME 90
-#else
-#define REDUCTION_GEAR 5.18
-#define DOME_TEETH 60
-#define GEAR_TEETH 20
-#define DOME_TURN_TIME 30
-#endif
-
 // set this to match the type of steps configured on the
 // stepper controller
-#ifndef BIG_EASY
 #define STEP_TYPE 8
-#else
-#define STEP_TYPE 16
-#endif
-
-#define MOVE_INC 5000
 
 
 //  For reading our input voltage
@@ -156,6 +134,9 @@
 //  Query slightly early so the query is waiting when it wakes up
 #define SHUTTER_AWAKE_WAIT 900
 
+// RG-11
+#define NOT_RAINING	1
+#define RAINING		0
 
 //  Globals needed
 //  this one is set by the home sensor interrupt routines
@@ -176,6 +157,7 @@ int BatteryVolts=0;
 int ShutterBatteryVolts=0;
 int LowVoltCutoff=0;
 bool DomeIsReversed=false;
+int rg11State = NOT_RAINING;
 
 //  The dome class will use an accel stepper object to run the motor
 AccelStepper accelStepper(AccelStepper::DRIVER, STP, DIR);
@@ -211,10 +193,10 @@ class NexDome
                   //  exposed publicly because it's performance sensative to reference
     bool FindingHome;
     bool Calibrating;
-
-	 bool needCalibrationAfterHoming;
     bool isAtHome();
     bool HasBeenHome;
+
+
     float HomeAzimuth;
     float ParkAzimuth;
     long int StepsPerDomeTurn;
@@ -251,11 +233,10 @@ NexDome::NexDome()
   FindingHome=false;
   //SettingHome=false;
   Calibrating=false;
-  needCalibrationAfterHoming = false;
   HomeAzimuth=0;  //  an uncalibrated dome
   ParkAzimuth=180;
   HasBeenHome=false;
-	accelStepper.setPinsInverted(true,false,false);
+  accelStepper.setPinsInverted(true,false,false);
   memset(ShutterVersion,0,SHUTTER_VERSION_LENGTH);
 }
 
@@ -536,7 +517,6 @@ int NexDome::SetHeading(float h)
   TargetSteps=TargetSteps-r;
 
   MoveTo(TargetSteps);
-
   return 0;
 }
 
@@ -571,7 +551,7 @@ int NexDome::AtHome()
       //  we often get a second hit on the other edge
       //  when we were stopped within the magnet range
       //  if calibrating, ignore a hit that comes to quickly
-      if(LastHomeCount < MOVE_INC) {
+      if(LastHomeCount < 5000) {
         //Computer.println("Ignore spurios home hit while calibrating");
         return 0;
       }
@@ -586,10 +566,6 @@ int NexDome::AtHome()
     //accelStepper.setCurrentPosition(0);
     MoveTo(LastHomeCount);
     //SettingHome=true;
-    if (needCalibrationAfterHoming) {
-    	Calibrate();
-    	needCalibrationAfterHoming = false;
-    }
   }
   return 0;
 }
@@ -606,7 +582,7 @@ void NexDome::Calibrate()
 {
   HomeAzimuth=0;
   accelStepper.setCurrentPosition(0);
-  MoveTo(CurrentPosition() + MOVE_INC);
+  MoveTo(CurrentPosition() + 5000);
   Calibrating=true;
   FindingHome=true;
 }
@@ -627,12 +603,7 @@ void HomeInterrupt()
   int a;
   int b;
   a=digitalRead(HOME);
-  b=digitalRead(HOME);
-  // isrstate[0]=a;
-  // isrstate[1]=b;
-  //HomeSensor=true;
-  //return;
-
+  //b=digitalRead(HOME);
   if(SenseRising) {
     if(a==0) HomeSensor=true;
   } else {
@@ -645,7 +616,6 @@ void HomeInterrupt()
     //HomeSensor=true;
   //}
 }
-
 /*
 void OtherInterrupt()
 {
@@ -670,7 +640,6 @@ void setup() {
   float MotorTurnsPerDomeTurn;
   float StepsPerGearTurn;
   long int StepsPerDomeTurn;
-  long int StepsPerDomeTurnTmp;
   //float StepsPerSecond;
   long int StepsPerDegree;
 
@@ -684,6 +653,7 @@ void setup() {
   pinMode(OTHER_IRQ,INPUT_PULLUP);
   pinMode(BUTTON_EAST,INPUT_PULLUP);
   pinMode(BUTTON_WEST,INPUT_PULLUP);
+  pinMode(RG11,INPUT_PULLUP);
 
   pinMode(VPIN,INPUT);
 
@@ -693,6 +663,7 @@ void setup() {
 
   //  lets set up an interrupt from our home sensor
   attachInterrupt(digitalPinToInterrupt(HOME),HomeInterrupt,CHANGE);
+
   Computer.begin(9600);
   Wireless.begin(9600);
 
@@ -714,12 +685,7 @@ void setup() {
   Dome.DisableMotor();
   Dome.SetStepsPerDomeTurn(StepsPerDomeTurn);
 
-  StepsPerDomeTurnTmp = StepsPerDomeTurn;
   Dome.ReadConfig();
-
-	if(StepsPerDomeTurn == 0) {
-		StepsPerDomeTurn = StepsPerDomeTurnTmp;
-	}
 
   //Computer.print(Dome.StepsPerDomeTurn);
   //Computer.println(" steps per dome turn");
@@ -729,11 +695,6 @@ void setup() {
   ShutterQueryTime=SHUTTER_SLEEP_WAIT;
   ConfigureWireless();
 
-#ifdef BIG_EASY
-	digitalWrite(MS1,HIGH);
-	digitalWrite(MS2,HIGH);
-	digitalWrite(MS3,HIGH);
-#endif
   if(Dome.isAtHome()) {
     //  the dome is at the home sensor now
     if(Dome.HomeAzimuth != 0) Dome.Sync(Dome.HomeAzimuth);
@@ -775,6 +736,16 @@ int CheckButtons()
   //Serial.println(buttonstate);
   return buttonstate;
 
+}
+
+// check RG11 status
+// if it's not connected the pin is constantly High, aka not raining
+int CheckRG11()
+{
+  int RG11_state;
+
+  RG11_state = digitalRead(RG11);
+  return RG11_state;
 }
 
 //  define a buffer and pointers for our serial data state machine
@@ -824,6 +795,7 @@ void ProcessSerialCommand()
   char buf[20];
   //  reset our drop dead timer
   LastCommandTime=millis();
+
   /* Abort current motion */
   if(SerialBuffer[0]=='a') {
     //SerialTarget=false;
@@ -885,7 +857,9 @@ void ProcessSerialCommand()
    if(SerialBuffer[0]=='u') {
     if(Dome.Active) Dome.Run();
     Computer.print("U ");
-    Computer.println(ShutterState);
+    Computer.print(ShutterState);
+    Computer.print(" ");
+    Computer.println(rg11State);
    }
    /*  get shutter position  */
    if(SerialBuffer[0]=='b') {
@@ -895,17 +869,22 @@ void ProcessSerialCommand()
    }
    /*  Open Shutter  */
    if(SerialBuffer[0]=='d') {
-    Computer.println("D");
-    //  tell the shutter to open
-    Wireless.println("o");
-    //  set shutter state to opening, and it'll get set to whatever the shutter
-    //  is really doing on the next shutter status report
-    if(ShutterState != SHUTTER_STATE_NOT_CONNECTED) ShutterState=SHUTTER_STATE_OPENING;
-    //  now query status
-    //delay(300);
-    //Wireless.println("s");
-     //ShutterQueryTime=SHUTTER_AWAKE_WAIT;
-   }
+		if(rg11State == RAINING) {
+			Computer.println("E");
+		}
+		else {
+			Computer.println("D");
+			//  tell the shutter to open
+			Wireless.println("o");
+			//  set shutter state to opening, and it'll get set to whatever the shutter
+			//  is really doing on the next shutter status report
+			if(ShutterState != SHUTTER_STATE_NOT_CONNECTED) ShutterState=SHUTTER_STATE_OPENING;
+			//  now query status
+			//delay(300);
+			//Wireless.println("s");
+			//ShutterQueryTime=SHUTTER_AWAKE_WAIT;
+		}
+	}
    /*  Close Shutter  */
    if(SerialBuffer[0]=='e') {
     Computer.println("D");
@@ -1051,7 +1030,6 @@ void ProcessSerialCommand()
     Dome.FindHome();
     SerialTarget=true;
     Computer.println("H");
-    Dome.needCalibrationAfterHoming = false;
   }
   /* are we at the home position */
   if(SerialBuffer[0]=='z') {
@@ -1090,10 +1068,7 @@ void ProcessSerialCommand()
       Dome.Calibrate();
 
     } else {
-		Computer.println("C");
-		Dome.FindHome();
-		SerialTarget=true;
-		Dome.needCalibrationAfterHoming = true;
+      Computer.println("E");
     }
   }
   //  get / set the reversed flag
@@ -1383,8 +1358,7 @@ void IncomingWirelessChar(char a)
     WirelessBuffer[WirelessPointer]=0;
   }
   if(a < 0) {
-//    Computer.println("Wireless Clearing garbage");
-
+    Computer.println("Wireless Clearing garbage");
     WirelessPointer=0;
     WirelessBuffer[0]=0;
   }
@@ -1434,9 +1408,9 @@ void loop() {
   }
   if(Dome.FindingHome) {
     if(SenseRising) {
-      Dome.MoveTo(Dome.CurrentPosition()+MOVE_INC);
+      Dome.MoveTo(Dome.CurrentPosition()+5000);
     } else {
-      Dome.MoveTo(Dome.CurrentPosition()-MOVE_INC);
+      Dome.MoveTo(Dome.CurrentPosition()-5000);
     }
   }
   //  Now things are all initialized, we just get down to the nitty gritty of running a dome
@@ -1448,10 +1422,10 @@ void loop() {
     if(buttonstate != 0) SerialTarget=false;
     switch(buttonstate) {
       case 1:
-        Dome.MoveTo(Dome.CurrentPosition()+MOVE_INC);
+        Dome.MoveTo(Dome.CurrentPosition()+5000);
         break;
       case 2:
-        Dome.MoveTo(Dome.CurrentPosition()-MOVE_INC);
+        Dome.MoveTo(Dome.CurrentPosition()-5000);
         break;
       default:
         //  Dont stop the dome if we have motion driven by incoming
@@ -1459,6 +1433,16 @@ void loop() {
         if(!SerialTarget) Dome.Stop();
         break;
     }
+  }
+
+  // check the rain sensor
+  rg11State = CheckRG11();
+  if(rg11State == RAINING) {
+    // close shutter !!!!
+    if(ShutterState != SHUTTER_STATE_NOT_CONNECTED) {// why would you have a rain sensor without a shutter ?! :)
+      Wireless.println("c");
+      ShutterState=SHUTTER_STATE_CLOSING;
+      }
   }
 
   //  is there any data from the host computer to process
@@ -1537,7 +1521,7 @@ void loop() {
           ShutterAlive=false;
           ShutterVersion[0]=0;
           ShutterState=SHUTTER_STATE_NOT_CONNECTED;
-          // Computer.println("shutter asleep");
+          Computer.println("shutter asleep");
           ConfigureWireless();
           LastShutterResponse=0;
         }
