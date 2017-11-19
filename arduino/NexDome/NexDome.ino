@@ -745,6 +745,7 @@ int CheckRG11()
   int RG11_state;
 
   RG11_state = digitalRead(RG11);
+
   return RG11_state;
 }
 
