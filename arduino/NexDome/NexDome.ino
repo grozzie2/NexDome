@@ -1440,7 +1440,7 @@ void loop() {
   rg11State = CheckRG11();
   if(rg11State == RAINING) {
     // close shutter !!!!
-    if(ShutterState != SHUTTER_STATE_NOT_CONNECTED) {// why would you have a rain sensor without a shutter ?! :)
+    if(ShutterState != SHUTTER_STATE_NOT_CONNECTED && ShutterState == SHUTTER_STATE_OPEN) {// why would you have a rain sensor without a shutter ?! :)
       Wireless.println("c");
       ShutterState=SHUTTER_STATE_CLOSING;
       }
