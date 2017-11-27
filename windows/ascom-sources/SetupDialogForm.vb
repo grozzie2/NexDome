@@ -34,12 +34,10 @@ Public Class SetupForm
 
     Public MyDome As Dome
 
-    Private Sub TimerEventProcessor(myObject As Object,
+   Private Sub TimerEventProcessor(myObject As Object,
                                            ByVal myEventArgs As EventArgs) _
                                        Handles myTimer.Tick
 
-
-        Dim ti As Integer
         'Beep()
 
         'BatteryVoltsDisplay.Text = Convert.ToString(Dome.BatteryVoltage)
@@ -70,28 +68,21 @@ Public Class SetupForm
             Else
                 If Dome.isAtHome Then
                     StatusLine.Text = "At Home"
+
                     If isCalibrating Then
                         isCalibrating = False
                         doneCalibrating = True
                         HomeButton.Text = "Home"
                         'AzimuthBox.Text = "Calibration"
                     End If
+                Else If Dome.isAtPark Then
+                    StatusLine.Text = "At Park"
                 Else
-                    If Dome.isAtPark Then
-                        StatusLine.Text = "At Park"
-                    End If
                     StatusLine.Text = ""
                 End If
+
             End If
         End If
-
-        If Dome.isAtHome Then
-            CalibrateButton.Enabled = True
-            'StatusLine.Text = "At Home"
-        Else
-            CalibrateButton.Enabled = False
-        End If
-
     End Sub
 
     Private Sub SetupForm_Load(sender As Object, e As EventArgs) Handles MyBase.Load

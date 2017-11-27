@@ -51,33 +51,35 @@ Partial Class SetupForm
         Me.Label4 = New System.Windows.Forms.Label()
         Me.GroupBox5 = New System.Windows.Forms.GroupBox()
         Me.SleepTimer = New System.Windows.Forms.TextBox()
-        Me.HomeBox.SuspendLayout()
-        Me.ParkBox.SuspendLayout()
-        Me.GroupBox4.SuspendLayout()
-        Me.BatteryBox.SuspendLayout()
-        Me.GroupBox1.SuspendLayout()
-        Me.GroupBox2.SuspendLayout()
-        Me.GroupBox3.SuspendLayout()
-        Me.GroupBox5.SuspendLayout()
-        Me.SuspendLayout()
+        Me.PictureBox1 = New System.Windows.Forms.PictureBox()
+        Me.HomeBox.SuspendLayout
+        Me.ParkBox.SuspendLayout
+        Me.GroupBox4.SuspendLayout
+        Me.BatteryBox.SuspendLayout
+        Me.GroupBox1.SuspendLayout
+        Me.GroupBox2.SuspendLayout
+        Me.GroupBox3.SuspendLayout
+        Me.GroupBox5.SuspendLayout
+        CType(Me.PictureBox1,System.ComponentModel.ISupportInitialize).BeginInit
+        Me.SuspendLayout
         '
         'OK_Button
         '
         Me.OK_Button.Location = New System.Drawing.Point(12, 208)
         Me.OK_Button.Name = "OK_Button"
-        Me.OK_Button.Size = New System.Drawing.Size(66, 27)
+        Me.OK_Button.Size = New System.Drawing.Size(81, 27)
         Me.OK_Button.TabIndex = 0
         Me.OK_Button.Text = "OK"
-        Me.OK_Button.UseVisualStyleBackColor = True
+        Me.OK_Button.UseVisualStyleBackColor = true
         '
         'CalibrateButton
         '
-        Me.CalibrateButton.Location = New System.Drawing.Point(161, 208)
+        Me.CalibrateButton.Location = New System.Drawing.Point(186, 208)
         Me.CalibrateButton.Name = "CalibrateButton"
-        Me.CalibrateButton.Size = New System.Drawing.Size(60, 27)
+        Me.CalibrateButton.Size = New System.Drawing.Size(81, 27)
         Me.CalibrateButton.TabIndex = 1
         Me.CalibrateButton.Text = "Calibrate"
-        Me.CalibrateButton.UseVisualStyleBackColor = True
+        Me.CalibrateButton.UseVisualStyleBackColor = true
         '
         'HomeBox
         '
@@ -86,7 +88,7 @@ Partial Class SetupForm
         Me.HomeBox.Name = "HomeBox"
         Me.HomeBox.Size = New System.Drawing.Size(96, 50)
         Me.HomeBox.TabIndex = 2
-        Me.HomeBox.TabStop = False
+        Me.HomeBox.TabStop = false
         Me.HomeBox.Text = "Home Azimuth"
         '
         'HomePosition
@@ -104,7 +106,7 @@ Partial Class SetupForm
         Me.ParkBox.Name = "ParkBox"
         Me.ParkBox.Size = New System.Drawing.Size(96, 46)
         Me.ParkBox.TabIndex = 3
-        Me.ParkBox.TabStop = False
+        Me.ParkBox.TabStop = false
         Me.ParkBox.Text = "Park Azimuth"
         '
         'GroupBox4
@@ -114,7 +116,7 @@ Partial Class SetupForm
         Me.GroupBox4.Name = "GroupBox4"
         Me.GroupBox4.Size = New System.Drawing.Size(96, 46)
         Me.GroupBox4.TabIndex = 12
-        Me.GroupBox4.TabStop = False
+        Me.GroupBox4.TabStop = false
         Me.GroupBox4.Text = "Park Azimuth"
         '
         'TextBox1
@@ -133,12 +135,12 @@ Partial Class SetupForm
         '
         'Cancel_Button
         '
-        Me.Cancel_Button.Location = New System.Drawing.Point(229, 209)
+        Me.Cancel_Button.Location = New System.Drawing.Point(273, 209)
         Me.Cancel_Button.Name = "Cancel_Button"
-        Me.Cancel_Button.Size = New System.Drawing.Size(60, 26)
+        Me.Cancel_Button.Size = New System.Drawing.Size(77, 26)
         Me.Cancel_Button.TabIndex = 4
         Me.Cancel_Button.Text = "Cancel"
-        Me.Cancel_Button.UseVisualStyleBackColor = True
+        Me.Cancel_Button.UseVisualStyleBackColor = true
         '
         'BatteryBox
         '
@@ -150,12 +152,12 @@ Partial Class SetupForm
         Me.BatteryBox.Name = "BatteryBox"
         Me.BatteryBox.Size = New System.Drawing.Size(107, 60)
         Me.BatteryBox.TabIndex = 5
-        Me.BatteryBox.TabStop = False
+        Me.BatteryBox.TabStop = false
         Me.BatteryBox.Text = "Battery Voltage"
         '
         'ShutterVolts
         '
-        Me.ShutterVolts.AutoSize = True
+        Me.ShutterVolts.AutoSize = true
         Me.ShutterVolts.Location = New System.Drawing.Point(53, 37)
         Me.ShutterVolts.Name = "ShutterVolts"
         Me.ShutterVolts.Size = New System.Drawing.Size(16, 13)
@@ -164,7 +166,7 @@ Partial Class SetupForm
         '
         'BaseVolts
         '
-        Me.BaseVolts.AutoSize = True
+        Me.BaseVolts.AutoSize = true
         Me.BaseVolts.Location = New System.Drawing.Point(52, 16)
         Me.BaseVolts.Name = "BaseVolts"
         Me.BaseVolts.Size = New System.Drawing.Size(16, 13)
@@ -173,7 +175,7 @@ Partial Class SetupForm
         '
         'Label2
         '
-        Me.Label2.AutoSize = True
+        Me.Label2.AutoSize = true
         Me.Label2.Location = New System.Drawing.Point(6, 37)
         Me.Label2.Name = "Label2"
         Me.Label2.Size = New System.Drawing.Size(41, 13)
@@ -182,7 +184,7 @@ Partial Class SetupForm
         '
         'Label1
         '
-        Me.Label1.AutoSize = True
+        Me.Label1.AutoSize = true
         Me.Label1.Location = New System.Drawing.Point(6, 16)
         Me.Label1.Name = "Label1"
         Me.Label1.Size = New System.Drawing.Size(31, 13)
@@ -191,26 +193,26 @@ Partial Class SetupForm
         '
         'HomeButton
         '
-        Me.HomeButton.Location = New System.Drawing.Point(86, 208)
+        Me.HomeButton.Location = New System.Drawing.Point(99, 208)
         Me.HomeButton.Name = "HomeButton"
-        Me.HomeButton.Size = New System.Drawing.Size(66, 27)
+        Me.HomeButton.Size = New System.Drawing.Size(81, 27)
         Me.HomeButton.TabIndex = 6
         Me.HomeButton.Text = "Home"
-        Me.HomeButton.UseVisualStyleBackColor = True
+        Me.HomeButton.UseVisualStyleBackColor = true
         '
         'GroupBox1
         '
         Me.GroupBox1.Controls.Add(Me.StatusLine)
         Me.GroupBox1.Location = New System.Drawing.Point(114, 80)
         Me.GroupBox1.Name = "GroupBox1"
-        Me.GroupBox1.Size = New System.Drawing.Size(183, 48)
+        Me.GroupBox1.Size = New System.Drawing.Size(236, 48)
         Me.GroupBox1.TabIndex = 7
-        Me.GroupBox1.TabStop = False
+        Me.GroupBox1.TabStop = false
         Me.GroupBox1.Text = "Dome Status"
         '
         'StatusLine
         '
-        Me.StatusLine.AutoSize = True
+        Me.StatusLine.AutoSize = true
         Me.StatusLine.Location = New System.Drawing.Point(6, 21)
         Me.StatusLine.Name = "StatusLine"
         Me.StatusLine.Size = New System.Drawing.Size(19, 13)
@@ -219,13 +221,13 @@ Partial Class SetupForm
         '
         'ReverseCheckbox
         '
-        Me.ReverseCheckbox.AutoSize = True
+        Me.ReverseCheckbox.AutoSize = true
         Me.ReverseCheckbox.Location = New System.Drawing.Point(19, 171)
         Me.ReverseCheckbox.Name = "ReverseCheckbox"
         Me.ReverseCheckbox.Size = New System.Drawing.Size(72, 17)
         Me.ReverseCheckbox.TabIndex = 9
         Me.ReverseCheckbox.Text = "Reversed"
-        Me.ReverseCheckbox.UseVisualStyleBackColor = True
+        Me.ReverseCheckbox.UseVisualStyleBackColor = true
         '
         'GroupBox2
         '
@@ -235,14 +237,14 @@ Partial Class SetupForm
         Me.GroupBox2.Controls.Add(Me.Label6)
         Me.GroupBox2.Location = New System.Drawing.Point(116, 134)
         Me.GroupBox2.Name = "GroupBox2"
-        Me.GroupBox2.Size = New System.Drawing.Size(182, 60)
+        Me.GroupBox2.Size = New System.Drawing.Size(234, 60)
         Me.GroupBox2.TabIndex = 10
-        Me.GroupBox2.TabStop = False
+        Me.GroupBox2.TabStop = false
         Me.GroupBox2.Text = "Arduino Firmware Versions"
         '
         'ShutterFirmware
         '
-        Me.ShutterFirmware.AutoSize = True
+        Me.ShutterFirmware.AutoSize = true
         Me.ShutterFirmware.Location = New System.Drawing.Point(53, 37)
         Me.ShutterFirmware.Name = "ShutterFirmware"
         Me.ShutterFirmware.Size = New System.Drawing.Size(16, 13)
@@ -251,7 +253,7 @@ Partial Class SetupForm
         '
         'BaseFirmware
         '
-        Me.BaseFirmware.AutoSize = True
+        Me.BaseFirmware.AutoSize = true
         Me.BaseFirmware.Location = New System.Drawing.Point(52, 16)
         Me.BaseFirmware.Name = "BaseFirmware"
         Me.BaseFirmware.Size = New System.Drawing.Size(16, 13)
@@ -260,7 +262,7 @@ Partial Class SetupForm
         '
         'Label5
         '
-        Me.Label5.AutoSize = True
+        Me.Label5.AutoSize = true
         Me.Label5.Location = New System.Drawing.Point(6, 37)
         Me.Label5.Name = "Label5"
         Me.Label5.Size = New System.Drawing.Size(41, 13)
@@ -269,7 +271,7 @@ Partial Class SetupForm
         '
         'Label6
         '
-        Me.Label6.AutoSize = True
+        Me.Label6.AutoSize = true
         Me.Label6.Location = New System.Drawing.Point(6, 16)
         Me.Label6.Name = "Label6"
         Me.Label6.Size = New System.Drawing.Size(31, 13)
@@ -285,7 +287,7 @@ Partial Class SetupForm
         Me.GroupBox3.Name = "GroupBox3"
         Me.GroupBox3.Size = New System.Drawing.Size(67, 60)
         Me.GroupBox3.TabIndex = 11
-        Me.GroupBox3.TabStop = False
+        Me.GroupBox3.TabStop = false
         Me.GroupBox3.Text = "Shutter Safety"
         '
         'LowVoltage
@@ -297,7 +299,7 @@ Partial Class SetupForm
         '
         'Label3
         '
-        Me.Label3.AutoSize = True
+        Me.Label3.AutoSize = true
         Me.Label3.Location = New System.Drawing.Point(53, 37)
         Me.Label3.Name = "Label3"
         Me.Label3.Size = New System.Drawing.Size(16, 13)
@@ -306,7 +308,7 @@ Partial Class SetupForm
         '
         'Label4
         '
-        Me.Label4.AutoSize = True
+        Me.Label4.AutoSize = true
         Me.Label4.Location = New System.Drawing.Point(52, 16)
         Me.Label4.Name = "Label4"
         Me.Label4.Size = New System.Drawing.Size(16, 13)
@@ -320,7 +322,7 @@ Partial Class SetupForm
         Me.GroupBox5.Name = "GroupBox5"
         Me.GroupBox5.Size = New System.Drawing.Size(96, 46)
         Me.GroupBox5.TabIndex = 12
-        Me.GroupBox5.TabStop = False
+        Me.GroupBox5.TabStop = false
         Me.GroupBox5.Text = "Sleep Timer"
         '
         'SleepTimer
@@ -330,12 +332,23 @@ Partial Class SetupForm
         Me.SleepTimer.Size = New System.Drawing.Size(73, 20)
         Me.SleepTimer.TabIndex = 4
         '
+        'PictureBox1
+        '
+        Me.PictureBox1.Image = Global.ASCOM.NexDome.My.Resources.Resources.ASCOM
+        Me.PictureBox1.Location = New System.Drawing.Point(304, 14)
+        Me.PictureBox1.Name = "PictureBox1"
+        Me.PictureBox1.Size = New System.Drawing.Size(48, 56)
+        Me.PictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.AutoSize
+        Me.PictureBox1.TabIndex = 13
+        Me.PictureBox1.TabStop = false
+        '
         'SetupForm
         '
         Me.AcceptButton = Me.OK_Button
-        Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
+        Me.AutoScaleDimensions = New System.Drawing.SizeF(6!, 13!)
         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
-        Me.ClientSize = New System.Drawing.Size(306, 256)
+        Me.ClientSize = New System.Drawing.Size(362, 250)
+        Me.Controls.Add(Me.PictureBox1)
         Me.Controls.Add(Me.GroupBox5)
         Me.Controls.Add(Me.GroupBox3)
         Me.Controls.Add(Me.GroupBox2)
@@ -351,26 +364,27 @@ Partial Class SetupForm
         Me.Name = "SetupForm"
         Me.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent
         Me.Text = "NexDome ASCOM Setup 1.12"
-        Me.HomeBox.ResumeLayout(False)
-        Me.HomeBox.PerformLayout()
-        Me.ParkBox.ResumeLayout(False)
-        Me.ParkBox.PerformLayout()
-        Me.GroupBox4.ResumeLayout(False)
-        Me.GroupBox4.PerformLayout()
-        Me.BatteryBox.ResumeLayout(False)
-        Me.BatteryBox.PerformLayout()
-        Me.GroupBox1.ResumeLayout(False)
-        Me.GroupBox1.PerformLayout()
-        Me.GroupBox2.ResumeLayout(False)
-        Me.GroupBox2.PerformLayout()
-        Me.GroupBox3.ResumeLayout(False)
-        Me.GroupBox3.PerformLayout()
-        Me.GroupBox5.ResumeLayout(False)
-        Me.GroupBox5.PerformLayout()
-        Me.ResumeLayout(False)
-        Me.PerformLayout()
+        Me.HomeBox.ResumeLayout(false)
+        Me.HomeBox.PerformLayout
+        Me.ParkBox.ResumeLayout(false)
+        Me.ParkBox.PerformLayout
+        Me.GroupBox4.ResumeLayout(false)
+        Me.GroupBox4.PerformLayout
+        Me.BatteryBox.ResumeLayout(false)
+        Me.BatteryBox.PerformLayout
+        Me.GroupBox1.ResumeLayout(false)
+        Me.GroupBox1.PerformLayout
+        Me.GroupBox2.ResumeLayout(false)
+        Me.GroupBox2.PerformLayout
+        Me.GroupBox3.ResumeLayout(false)
+        Me.GroupBox3.PerformLayout
+        Me.GroupBox5.ResumeLayout(false)
+        Me.GroupBox5.PerformLayout
+        CType(Me.PictureBox1,System.ComponentModel.ISupportInitialize).EndInit
+        Me.ResumeLayout(false)
+        Me.PerformLayout
 
-    End Sub
+End Sub
 
     Friend WithEvents OK_Button As Button
     Friend WithEvents CalibrateButton As Button
@@ -401,4 +415,5 @@ Partial Class SetupForm
     Friend WithEvents TextBox1 As TextBox
     Friend WithEvents GroupBox5 As GroupBox
     Friend WithEvents SleepTimer As TextBox
+    Friend WithEvents PictureBox1 As PictureBox
 End Class
