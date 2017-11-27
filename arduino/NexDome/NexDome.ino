@@ -17,7 +17,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with NexDome files.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  *   This file contains:-
  *   Firmware for the arduino leonardo in the NexDome rotation controller
  *   Hardware is the leonardo clone, with an xbee series 1 module
@@ -33,7 +33,7 @@
 
 /*
  *   Arduino pins
- *   
+ *
  *   0 - Serial
  *   1 - Serial
  *   2 - Irq Sensor (home for rotator, open for shutter)
@@ -48,13 +48,13 @@
  *   11- Motor Dir
  *   12- Motor Step
  *   13- On board led, we dont use it
- *   
+ *
  *   These 3 used only when the small prototype hacked for the big easy driver
  *   is in use for bench testing
  *   A0- MS1
  *   A1- MS2
  *   A2- MS3
- * 
+ *
  */
 
 //  Pin definitions
@@ -71,12 +71,12 @@
  *   on the leonardo, no big deal, we just use the standard hardware serial port on pins 0 and 1
  *   but for uno etc, if we intelligently choose our serial pins, we can use alternate better
  *   performing libraries
- *   
+ *
  *   SoftSerial can go on any pins
  *   AltSoftSerial can only go on tx 9 rx 8 on the uno (or other atmega328) boards
  *   There is also 'yetanothersoftserial', but it uses the two interrupt pins, 2 and 3
  *   which we want for our sensors
- *   
+ *
  */
 #define SERIAL_TX 9
 #define SERIAL_RX 8
@@ -91,6 +91,8 @@
 //  Our two buttons for manual movement
 #define BUTTON_EAST 5
 #define BUTTON_WEST 6
+// RG-11 rain sensor
+#define RG11  7
 
 
 //  Physical definitions of the gears
@@ -105,7 +107,7 @@
 #define STEP_TYPE 8
 
 
-//  For reading our input voltage 
+//  For reading our input voltage
 #define VPIN A0
 
 //  if we define our serial ports this way, then re-compiling for different port assignments
@@ -132,6 +134,9 @@
 //  Query slightly early so the query is waiting when it wakes up
 #define SHUTTER_AWAKE_WAIT 900
 
+// RG-11
+#define NOT_RAINING	1
+#define RAINING		0
 
 //  Globals needed
 //  this one is set by the home sensor interrupt routines
@@ -152,6 +157,7 @@ int BatteryVolts=0;
 int ShutterBatteryVolts=0;
 int LowVoltCutoff=0;
 bool DomeIsReversed=false;
+int rg11State = NOT_RAINING;
 
 //  The dome class will use an accel stepper object to run the motor
 AccelStepper accelStepper(AccelStepper::DRIVER, STP, DIR);
@@ -189,8 +195,8 @@ class NexDome
     bool Calibrating;
     bool isAtHome();
     bool HasBeenHome;
-    
-      
+
+
     float HomeAzimuth;
     float ParkAzimuth;
     long int StepsPerDomeTurn;
@@ -247,7 +253,7 @@ bool NexDome::SaveConfig()
   cfg.HomeAzimuth=HomeAzimuth;
   cfg.ParkAzimuth=ParkAzimuth;
   cfg.IsReversed=DomeIsReversed;
-  
+
   EEPROM.put(EEPROM_LOCATION,cfg);
   return true;
 }
@@ -297,7 +303,7 @@ int NexDome::SetStepsPerDomeTurn(long int steps)
 
   //Computer.println("Setting steps per turn to ");
   //Computer.println(steps);
-  
+
   StepsPerDomeTurn=steps;
   StepsPerSecond=StepsPerDomeTurn/DOME_TURN_TIME;
   if(StepsPerSecond < 2000) StepsPerSecond=2000;
@@ -306,7 +312,7 @@ int NexDome::SetStepsPerDomeTurn(long int steps)
   accelStepper.setMaxSpeed(StepsPerSecond);
   //  Set a ramp time
   accelStepper.setAcceleration(StepsPerSecond*2);
-  
+
   return 0;
 }
 
@@ -316,7 +322,7 @@ void NexDome::EnableMotor()
   //Computer.println(CurrentPosition());
   digitalWrite(EN,LOW);
   delay(100);
-  Active=true;  
+  Active=true;
 }
 
 void NexDome::DisableMotor()
@@ -325,7 +331,7 @@ void NexDome::DisableMotor()
 
   //digitalWrite(DIR,LOW);
   //digitalWrite(STP,LOW);
-  
+
   Active=false;
   //Computer.println("Stopped");
 }
@@ -416,13 +422,13 @@ long int NexDome::AzimuthToTicks(int az)
 
 float NexDome::GetHeading()
 {
-  /* floating point math for get heading  
+  /* floating point math for get heading
    *  prefer floats for accurately placing
    *  the power pickup to charge the shutter
    *  but it introduces significant processing
    *  overhead
    */
-  
+
   float Heading;
   //Computer.print("Current ");
   //Computer.println(CurrentPosition());
@@ -434,7 +440,7 @@ float NexDome::GetHeading()
   while(Heading >= 360) Heading-=360;
   if(Active) Run();
   return Heading;
-  
+
 
 /*
   long int h;
@@ -471,7 +477,7 @@ int NexDome::SetHeading(float h)
   current=GetHeading();
   delta=h-current;
   if(delta == 0) return 0; //  we are already there
-  
+
   if((delta <= 180)&&(delta >= -180)) {
     target=current+delta;
   }
@@ -495,7 +501,7 @@ int NexDome::SetHeading(float h)
   Computer.print("new target is ");
   Computer.println(target);
 */
- 
+
 
 
   /*
@@ -505,11 +511,11 @@ int NexDome::SetHeading(float h)
   //Computer.println(CurrentPosition());
   //Computer.println(TargetSteps);
 
-  
+
   //  now round to even steps, not microsteps
   r=TargetSteps%STEP_TYPE;
   TargetSteps=TargetSteps-r;
-  
+
   MoveTo(TargetSteps);
   return 0;
 }
@@ -588,7 +594,7 @@ bool NexDome::isAtHome()
   a=digitalRead(HOME);
   if(a==0) return true;
   return false;
-  
+
 }
 
 void HomeInterrupt()
@@ -647,6 +653,7 @@ void setup() {
   pinMode(OTHER_IRQ,INPUT_PULLUP);
   pinMode(BUTTON_EAST,INPUT_PULLUP);
   pinMode(BUTTON_WEST,INPUT_PULLUP);
+  pinMode(RG11,INPUT_PULLUP);
 
   pinMode(VPIN,INPUT);
 
@@ -656,7 +663,7 @@ void setup() {
 
   //  lets set up an interrupt from our home sensor
   attachInterrupt(digitalPinToInterrupt(HOME),HomeInterrupt,CHANGE);
-  
+
   Computer.begin(9600);
   Wireless.begin(9600);
 
@@ -664,7 +671,7 @@ void setup() {
   //  so we see the output in the monitor during inti
   //while(!Serial) {
   //}
-  //Computer.println("Starting NexDome"); 
+  //Computer.println("Starting NexDome");
 
   MotorTurnsPerDomeTurn = (float)DOME_TEETH / (float) GEAR_TEETH;
   StepsPerGearTurn=200.0*(float)REDUCTION_GEAR*(float)STEP_TYPE;
@@ -673,7 +680,7 @@ void setup() {
 
   //Computer.print(StepsPerDomeTurn);
   //Computer.println(" Calculated steps per turn");
-  
+
   Dome.EnableMotor();
   Dome.DisableMotor();
   Dome.SetStepsPerDomeTurn(StepsPerDomeTurn);
@@ -684,7 +691,7 @@ void setup() {
   //Computer.println(" steps per dome turn");
   //Computer.print(StepsPerDegree);
   //Computer.println(" steps per degree");
-  
+
   ShutterQueryTime=SHUTTER_SLEEP_WAIT;
   ConfigureWireless();
 
@@ -717,7 +724,7 @@ int CheckButtons()
   }
   //Serial.println(now-LastButton);
   LastButton=now;
- 
+
   int bw,be;
   int buttonstate;
   //Serial.println(accelStepper.currentPosition());
@@ -728,7 +735,18 @@ int CheckButtons()
   buttonstate=buttonstate ^ 0x03;
   //Serial.println(buttonstate);
   return buttonstate;
-  
+
+}
+
+// check RG11 status
+// if it's not connected the pin is constantly High, aka not raining
+int CheckRG11()
+{
+  int RG11_state;
+
+  RG11_state = digitalRead(RG11);
+
+  return RG11_state;
 }
 
 //  define a buffer and pointers for our serial data state machine
@@ -759,26 +777,26 @@ bool FoundXBee=false;
  * we use sprintf and write to avoid Serial library overhead
  * which causes the stepper to stutter during command
  * exchanges if using simple print and println functions
- * 
+ *
  * On arduino, sprintf doesn't support floating point
- * so for float returns we format with dtostrf 
- * 
+ * so for float returns we format with dtostrf
+ *
  * We process only a subset of commands when the dome is
  * in motion, because some of the shutter commands can tak
  * a few seconds to complete, and we dont want to make our
  * state machines so complex they dont fit in arduino memory
- * 
+ *
  * The simple solution, only process dome status commands while
  * in motion, and process the rest when dome is not running
- * 
+ *
  */
 void ProcessSerialCommand()
 {
-  
+
   char buf[20];
   //  reset our drop dead timer
   LastCommandTime=millis();
-  
+
   /* Abort current motion */
   if(SerialBuffer[0]=='a') {
     //SerialTarget=false;
@@ -830,17 +848,19 @@ void ProcessSerialCommand()
     return;
   }
 
-  
+
   /*
    * These commands should not be processed when the dome is in motion
-   * 
+   *
    */
 
    /* query shutter state */
    if(SerialBuffer[0]=='u') {
     if(Dome.Active) Dome.Run();
     Computer.print("U ");
-    Computer.println(ShutterState);
+    Computer.print(ShutterState);
+    Computer.print(" ");
+    Computer.println(rg11State);
    }
    /*  get shutter position  */
    if(SerialBuffer[0]=='b') {
@@ -850,17 +870,22 @@ void ProcessSerialCommand()
    }
    /*  Open Shutter  */
    if(SerialBuffer[0]=='d') {
-    Computer.println("D");
-    //  tell the shutter to open
-    Wireless.println("o");
-    //  set shutter state to opening, and it'll get set to whatever the shutter
-    //  is really doing on the next shutter status report
-    if(ShutterState != SHUTTER_STATE_NOT_CONNECTED) ShutterState=SHUTTER_STATE_OPENING;
-    //  now query status
-    //delay(300);
-    //Wireless.println("s");
-     //ShutterQueryTime=SHUTTER_AWAKE_WAIT;
-   }
+		if(rg11State == RAINING) {
+			Computer.println("E");
+		}
+		else {
+			Computer.println("D");
+			//  tell the shutter to open
+			Wireless.println("o");
+			//  set shutter state to opening, and it'll get set to whatever the shutter
+			//  is really doing on the next shutter status report
+			if(ShutterState != SHUTTER_STATE_NOT_CONNECTED) ShutterState=SHUTTER_STATE_OPENING;
+			//  now query status
+			//delay(300);
+			//Wireless.println("s");
+			//ShutterQueryTime=SHUTTER_AWAKE_WAIT;
+		}
+	}
    /*  Close Shutter  */
    if(SerialBuffer[0]=='e') {
     Computer.println("D");
@@ -873,7 +898,7 @@ void ProcessSerialCommand()
     /*  Set Shutter Position */
    if(SerialBuffer[0]=='f') {
     float tt;
-    
+
     Computer.println("F");
     tt=atof(&SerialBuffer[1]);
     Wireless.print("f ");
@@ -882,7 +907,7 @@ void ProcessSerialCommand()
     //Wireless.println("s");
      //ShutterQueryTime=SHUTTER_AWAKE_WAIT;
    }
- 
+
   // Wake up the shutter so it's more responsive while config
   //  dialog is on screen
   if(SerialBuffer[0]=='x') {
@@ -937,7 +962,7 @@ void ProcessSerialCommand()
     //Computer.println(" Steps per Dome turn");
     //Computer.println(Dome.HomeAzimuth);
     //Computer.println(" Home Azimuth");
-    
+
   }
   /* query for home azimuth */
   if(SerialBuffer[0]=='i') {
@@ -946,7 +971,7 @@ void ProcessSerialCommand()
     //Computer.println(" Steps per Dome turn");
     //Computer.println(Dome.HomeAzimuth);
     //Computer.println(" Home Azimuth");
-    
+
   }
   /* Set the home azimuth */
   if(SerialBuffer[0]=='j') {
@@ -963,7 +988,7 @@ void ProcessSerialCommand()
     //Computer.println(" Steps per Dome turn");
     //Computer.println(Dome.HomeAzimuth);
     //Computer.println(" Home Azimuth");
-    
+
   }
   /* query for park azimuth */
   if(SerialBuffer[0]=='n') {
@@ -972,7 +997,7 @@ void ProcessSerialCommand()
     //Computer.println(" Steps per Dome turn");
     //Computer.println(Dome.HomeAzimuth);
     //Computer.println(" Home Azimuth");
-    
+
   }
   /* Set the park azimuth */
   if(SerialBuffer[0]=='l') {
@@ -986,9 +1011,9 @@ void ProcessSerialCommand()
     //Computer.println(" Steps per Dome turn");
     //Computer.println(Dome.HomeAzimuth);
     //Computer.println(" Home Azimuth");
-    
+
   }
-  
+
 /*  goto based on a heading */
   if(SerialBuffer[0]=='g') {
     float target;
@@ -1042,7 +1067,7 @@ void ProcessSerialCommand()
       Computer.println("C");
       SerialTarget=true;
       Dome.Calibrate();
-      
+
     } else {
       Computer.println("E");
     }
@@ -1068,7 +1093,7 @@ void ProcessSerialCommand()
     }
     Computer.print("Y ");
     Computer.println(DomeIsReversed);
-    
+
   }
   //  query/set for shutter hibernate timer
   if(SerialBuffer[0]=='r') {
@@ -1089,7 +1114,7 @@ void ProcessSerialCommand()
     Computer.println("W");
     ConfigureWireless();
   }
-  
+
   /* get firmware version */
   if(SerialBuffer[0]=='v') {
     Computer.print("VNexDome V ");
@@ -1119,7 +1144,7 @@ void IncomingSerialChar(char a)
     SerialPointer=0;
     return;
   }
-  
+
   SerialBuffer[SerialPointer]=a;
   SerialPointer++;
   if(SerialPointer==MY_SERIAL_BUFFER_SIZE) {
@@ -1135,9 +1160,9 @@ void IncomingSerialChar(char a)
 
 /*
  * Stuff we need for handling communication with the shutter
- * 
+ *
  */
- 
+
 
 void ConfigureWireless()
 {
@@ -1172,23 +1197,23 @@ void ProcessShutterData()
             Wireless.println("ATID5555");
             //Computer.println("Setting wireless id");
             break;
-         
+
           case 1:
             Wireless.println("ATCE1");
             //Computer.println("Setting cordinator");
             break;
-            
+
          case 2:
             Wireless.println("ATPL0");
             //Computer.println("Setting Power");
             break;
-            
+
           case 3:
             Wireless.println("ATSM4");
             //Wireless.println("ATSM0");
             //Computer.println("Setting sleep mode");
             break;
-          
+
           case 4:
             //  set sleep period, this is the co-ordinator
             //  so it defines how long we will hold a message
@@ -1196,17 +1221,17 @@ void ProcessShutterData()
             Wireless.println("ATSP5DC");
             //Computer.println("Setting sleep period");
             break;
-            
+
           case 5:
             Wireless.println("ATST100");
             //Computer.println("Setting sleep wait time");
             break;
-             
+
            case 6:
             Wireless.println("ATCN");
             //Computer.println("Exit command mode");
             break;
-            
+
          default:
             //  Finished configuring, now see if the shutter is alive
             Wireless.println("s");
@@ -1307,15 +1332,15 @@ void ProcessShutterData()
       if(WirelessBuffer[1]==' ') {
         ShutterHibernateTimer=atol(&WirelessBuffer[1]);
       }
-    }   
+    }
   }
 
   // clear the buffer now that it's processed
   memset(WirelessBuffer,0,MY_SERIAL_BUFFER_SIZE);
   WirelessPointer=0;
-  
+
   return;
-  
+
 }
 
 void IncomingWirelessChar(char a)
@@ -1355,7 +1380,7 @@ int CheckBattery()
   //v=(float)volts/(float)100;
   BatteryVolts=volts;
   //Computer.println(volts);
-  return 0;  
+  return 0;
 }
 
 void loop() {
@@ -1379,7 +1404,7 @@ void loop() {
       //  need to make an adjustment for rollover
       if(HeadingError < -359) HeadingError=HeadingError+360;
       Dome.AtHome();
-     
+
     HomeSensor=false;
   }
   if(Dome.FindingHome) {
@@ -1411,6 +1436,16 @@ void loop() {
     }
   }
 
+  // check the rain sensor
+  rg11State = CheckRG11();
+  if(rg11State == RAINING) {
+    // close shutter !!!!
+    if(ShutterState != SHUTTER_STATE_NOT_CONNECTED && ShutterState == SHUTTER_STATE_OPEN) {// why would you have a rain sensor without a shutter ?! :)
+      Wireless.println("c");
+      ShutterState=SHUTTER_STATE_CLOSING;
+      }
+  }
+
   //  is there any data from the host computer to process
   if(Computer.available()) {
     IncomingSerialChar(Computer.read());
@@ -1424,7 +1459,7 @@ void loop() {
   }
 
   //CheckBattery();
-  
+
   if(Dome.Active)
   {
     //Computer.println("r");
@@ -1436,14 +1471,14 @@ void loop() {
 
       //Computer.print("Heading correction ");
       //Computer.println(HeadingError);
-      
+
       pos=Dome.GetHeading();
       pos=pos+HeadingError;
       Dome.Sync(pos);
       LastHeadingError=HeadingError;
       HeadingError=0;
     }
-    //Computer.println("s");    
+    //Computer.println("s");
     //  we need to do a keep alive with the shutter
     //  And confirm it's still alive and running
     //  And we should check on battery voltage once in a while too
@@ -1454,7 +1489,7 @@ void loop() {
     now=millis();
 
 
-    
+
     if(now < LastShutterKeepAlive) {
     //  the millisecond timer has rolled over
       LastShutterKeepAlive=now;
@@ -1524,7 +1559,7 @@ void loop() {
             ShutterState=SHUTTER_STATE_UNKNOWN;
             LastCommandTime=millis();
             //delay(1000);
-            
+
           } else {
             //  It's time to
             Computer.println("  Close Shutter on host timeout");
