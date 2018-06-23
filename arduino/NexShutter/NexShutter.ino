@@ -1,4 +1,4 @@
-/*  
+/*
  *  This package includes the drivers and sources for the NexDome
  *  Copyright (C) 2016 Rozeware Development Ltd.
  *
@@ -14,19 +14,19 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with NexDome files.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  *   This file conatins:-
  *   Firmware for the aruduino in the NexDome shutter controller
  *   Hardware is the leonardo clone with an xbee series 1 module
  *   and a TB6600 based stepper motor driver
  */
- 
+
 //  Libraries we need to include
 #include <EEPROM.h>
 #include <AccelStepper.h>
 
 #define VERSION_MAJOR 1
-#define VERSION_MINOR 10
+#define VERSION_MINOR 11
 
 
 /*
@@ -44,12 +44,12 @@
  *   on the leonardo, no big deal, we just use the standard hardware serial port on pins 0 and 1
  *   but for uno etc, if we intelligently choose our serial pins, we can use alternate better
  *   performing libraries
- *   
+ *
  *   SoftSerial can go on any pins
  *   AltSoftSerial can only go on tx 9 rx 8 on the uno (or other atmega328) boards
  *   There is also 'yetanothersoftserial', but it uses the two interrupt pins, 2 and 3
  *   which we want for our sensors
- *   
+ *
  */
 #define SERIAL_TX 9
 #define SERIAL_RX 8
@@ -67,9 +67,11 @@
 #define CLOSED_SWITCH 2
 #define OPEN_SWITCH 3
 
-//  For reading our input voltage 
+//  For reading our input voltage
 #define VPIN A0
 
+// LED for low power warnig
+#define PWR_WARN 4
 
 //  if we define our serial ports this way, then re-compiling for different port assignments
 //  on different processors, becomes easy and we dont have to hunt all over chaning
@@ -120,10 +122,15 @@ unsigned long int MotorOffTime;
 //  but they all trigger at the same time as this one
 //  So this doubles as the safety trigger too
 bool SerialTarget=true;
+bool blinkLowPwrLED;
 
 int BatteryVolts=0;
 int CutoffVolts=0;
 int LowVoltCount=0;
+
+unsigned long int last_blink = 0;
+unsigned int blink_delay = 0;
+
 
 //  The shutter class will use an accel stepper object to run the motor
 AccelStepper accelStepper(AccelStepper::DRIVER, STP, DIR);
@@ -141,7 +148,7 @@ void ConfigureWireless();
 
 class NexShutter
 {
-  
+
   public:
     NexShutter();
     ~NexShutter(){};  //  Empty destructor because it'll never get used
@@ -163,7 +170,7 @@ class NexShutter
     bool isOpenFull;
     bool isClosed;
     bool HaveDetectedClose;
-    
+
     long int StepsToFullOpen;
     long int CurrentPosition();
     void EnableMotor();
@@ -193,6 +200,7 @@ NexShutter::NexShutter()
   isOpenFull=false;
   isClosed=false;
   HaveDetectedClose=false;
+  blinkLowPwrLED=false;
 }
 
 bool NexShutter::SaveConfig()
@@ -210,7 +218,7 @@ bool NexShutter::SaveConfig()
 bool NexShutter::ReadConfig()
 {
   shutter_config cfg;
-  
+
   memset(&cfg,0,sizeof(cfg));
   EEPROM.get(EEPROM_LOCATION,cfg);
   if(cfg.signature != SIGNATURE) {
@@ -234,10 +242,10 @@ void NexShutter::EnableMotor()
 digitalWrite(EN,LOW);
 //#else
 //digitalWrite(EN,HIGH);
-//#endif 
+//#endif
   delay(100);
   Active=true;
-  HibernateRadio=false;  
+  HibernateRadio=false;
 }
 
 void NexShutter::DisableMotor()
@@ -246,7 +254,7 @@ void NexShutter::DisableMotor()
 digitalWrite(EN,HIGH);
 //#else
 //digitalWrite(EN,LOW);
-//#endif  
+//#endif
 
   //digitalWrite(DIR,LOW);
   //digitalWrite(STP,LOW);
@@ -270,7 +278,7 @@ bool NexShutter::Run()
     //  The move is finished
     long int pos;
     int l;
-    
+
     pos=accelStepper.currentPosition();
     l=pos%STEP_TYPE;
      //  We want it to stop on an even step boundary
@@ -307,7 +315,7 @@ bool NexShutter::Run()
           //Computer.println(delta);
           if(delta < 0) delta=delta*-1;
           //  if our difference is more than
-          //  2% of what we have saved 
+          //  2% of what we have saved
           if(delta > StepsToFullOpen/50) {
             Computer.println("Calibrating Shutter");
             StepsToFullOpen=pos;
@@ -321,7 +329,7 @@ bool NexShutter::Run()
           }
         } else {
           //  We are full open based on a sensor
-          //  
+          //
           accelStepper.setCurrentPosition(StepsToFullOpen);
         }
       }
@@ -354,7 +362,7 @@ bool NexShutter::Run()
 #ifdef BENCH_TEST
     long int pos;
      pos=accelStepper.currentPosition();
-  
+
     if((pos > StepsToFullOpen)&&(!Closing)) {
       isOpen=true;
       Stop();
@@ -387,9 +395,9 @@ void NexShutter::Stop()
 
   ClosingFull=false;
   OpeningFull=false;
-  
+
   if(!Active) return;
-  
+
   //  round to even steps
   current=accelStepper.currentPosition();
   r=current%STEP_TYPE;
@@ -401,13 +409,13 @@ void NexShutter::Stop()
   //Computer.println(current);
 
   return;
-  
+
 }
 
 void NexShutter::SetStepsToFullOpen(long int s)
 {
   long int StepsPerSecond;
-  
+
   StepsToFullOpen=s;
   StepsPerSecond=StepsToFullOpen/SHUTTER_MOVE_TIME;
   //  if we let the stop rate get to high then accelstepper takes to long
@@ -420,8 +428,8 @@ void NexShutter::SetStepsToFullOpen(long int s)
   accelStepper.setAcceleration(StepsPerSecond);
 
   //Computer.print(StepsPerSecond);
-  //Computer.println(" steps per second"); 
-  
+  //Computer.println(" steps per second");
+
   return;
 }
 
@@ -454,7 +462,7 @@ void NexShutter::MoveTo(long int t)
   }
   isClosed=false;
   accelStepper.moveTo(t);
-  
+
   return;
 }
 
@@ -487,7 +495,7 @@ int NexShutter::getShutterState()
 //Computer.print(Active);
 //Computer.print(isOpen);
 //Computer.println(isClosed);
-  
+
   if(Active) {
     if(Opening) state=SHUTTER_STATE_OPENING;
     if(Closing) state=SHUTTER_STATE_CLOSING;
@@ -511,7 +519,7 @@ float NexShutter::getShutterPosition()
   //  zero
   offset=offset*0.2;
   range=StepsToFullOpen-offset;
-  
+
   pos=accelStepper.currentPosition();
   pos=pos-offset;
 
@@ -524,7 +532,7 @@ float NexShutter::getShutterPosition()
   pos=pos*90;
   //if(pos < 0) pos=0;
   return pos;
-  
+
 }
 
 /*  this is the reverse math of get position  */
@@ -546,15 +554,15 @@ bool NexShutter::setShutterPosition(float target)
   if(pos > StepsToFullOpen) pos=StepsToFullOpen;
   s=pos;
 
-  
+
   // round to even steps
   r=s%STEP_TYPE;
   s=s-r;
-  
+
   //Computer.print("set position goes to ");
   //Computer.println(s);
   MoveTo(s);
-  
+
 }
 
 //  we have defined the shutter
@@ -585,7 +593,7 @@ void ClosedInterrupt()
       Shutter.Stop();
     }
   }
-  
+
 }
 /*  this interrupt will get called when the open limit switch changes state  */
 void OpenInterrupt()
@@ -605,24 +613,25 @@ void OpenInterrupt()
       Shutter.Stop();
     }
   }
-  
+
 }
 
 void setup() {
   // put your setup code here, to run once:
   int a;
-  
+
   // We need the internal pullups on our input pins
   pinMode(OPEN_SWITCH,INPUT_PULLUP);
   pinMode(CLOSED_SWITCH,INPUT_PULLUP);
   pinMode(BUTTON_OPEN,INPUT_PULLUP);
   pinMode(BUTTON_CLOSE,INPUT_PULLUP);
-  
+
+  pinMode(PWR_WARN, OUTPUT);
 
   pinMode(STP, OUTPUT);
   pinMode(DIR, OUTPUT);
   pinMode(EN, OUTPUT);
-  
+
 
   Computer.begin(9600);
   Wireless.begin(9600);
@@ -634,13 +643,13 @@ void setup() {
 
   attachInterrupt(digitalPinToInterrupt(CLOSED_SWITCH),ClosedInterrupt,CHANGE);
   attachInterrupt(digitalPinToInterrupt(OPEN_SWITCH),OpenInterrupt,CHANGE);
-  
+
    //  hack for development, we want it to wait now for the serial port to be connected
   //  so we see the output in the monitor during inti
   //while(!Serial) {
   //}
 
-  //Computer.println("Starting NexShutter"); 
+  //Computer.println("Starting NexShutter");
 
   long int MotorTurnsPerShutterMove;
   long int StepsPerGearTurn;
@@ -675,7 +684,7 @@ void setup() {
     //Computer.println("Shutter is open full");
   }
   else Shutter.isOpenFull=false;
-  
+
   a=digitalRead(CLOSED_SWITCH);
   if(a==0) {
     Shutter.isClosed=true;
@@ -725,7 +734,7 @@ int CheckButtons()
   }
   //Serial.println(now-LastButton);
   LastButton=now;
- 
+
   int bw,be;
   int buttonstate;
   //Serial.println(accelStepper.currentPosition());
@@ -735,9 +744,9 @@ int CheckButtons()
   buttonstate=bw+(be<<1);
   buttonstate=buttonstate ^ 0x03;
 
- 
+
   return buttonstate;
-  
+
 }
 
 
@@ -787,7 +796,7 @@ bool ProcessCommandBuffer(char *cbuf, Serial_ *responder)
       responder->write("S",1);
       state=Shutter.getShutterState();
       //Computer.println(state);
-      
+
       switch(state) {
         case SHUTTER_STATE_OPENING:
           responder->write("P",1);
@@ -822,9 +831,9 @@ bool ProcessCommandBuffer(char *cbuf, Serial_ *responder)
     responder->write("\n",1);
     return true;
   }
-    
-  
-  if(cbuf[0]=='q') {  
+
+
+  if(cbuf[0]=='q') {
     dtostrf(Shutter.CurrentPosition(),2,1,buf);
     responder->write("Q ",2);
     responder->write(buf,strlen(buf));
@@ -836,7 +845,7 @@ bool ProcessCommandBuffer(char *cbuf, Serial_ *responder)
   //  to many jitters on the stepper
   if(Shutter.Active) return true;
 
-  
+
   /*  restart xbee wireless */
   if(cbuf[0]=='w') {
     responder->print("W ");
@@ -905,7 +914,7 @@ bool ProcessCommandBuffer(char *cbuf, Serial_ *responder)
     responder->print("H ");
     responder->println(HibernateTimeout);
   }
-  
+
   if(cbuf[0]=='g') {
     Computer.print("g ");
     Computer.print(LowVoltCount);
@@ -936,7 +945,7 @@ bool ProcessCommandBuffer(char *cbuf, Serial_ *responder)
 
 void ProcessSerialCommand()
 {
-  
+
   if(ProcessCommandBuffer(SerialBuffer,&Computer)) {
     // if this was a valid command, reset the timeout
     LastCommandTime=millis();
@@ -951,7 +960,7 @@ void IncomingSerialChar(char a)
   if((a=='\n')||(a=='\r')) {
     return ProcessSerialCommand();
   }
-  
+
   SerialBuffer[SerialPointer]=a;
   SerialPointer++;
   if(SerialPointer==SERIAL_BUFFER_SIZE) {
@@ -999,7 +1008,7 @@ void ProcessWirelessData()
     if(WirelessBuffer[1]=='K') {
       //  The xbee unit is ready for configuration
       FoundXbee=true;
-      
+
       if(DoingWirelessConfig) {
         switch(WirelessConfigState) {
           case 0:
@@ -1066,8 +1075,8 @@ void ProcessWirelessData()
             WirelessBuffer[0]='s';
             WirelessBuffer[1]=0;
             WirelessPointer=1;
-            ProcessCommandBuffer(WirelessBuffer,(Serial_ *)&Wireless);          
-            
+            ProcessCommandBuffer(WirelessBuffer,(Serial_ *)&Wireless);
+
             break;
         }
         WirelessConfigState++;
@@ -1109,14 +1118,14 @@ void ProcessWirelessData()
   //  Computer.println("Change sleep mode");
   //  ConfigureWireless();
  // }
-  
+
 
   // clear the buffer now that it's processed
   memset(WirelessBuffer,0,SERIAL_BUFFER_SIZE);
   WirelessPointer=0;
-  
+
   return;
-  
+
 }
 
 void IncomingWirelessChar(char a)
@@ -1150,6 +1159,7 @@ void CheckBattery()
 {
   int volts;
   unsigned long int now;
+  float actualVolts;
 
   now=millis();
   //  deal with rollovers
@@ -1160,19 +1170,25 @@ void CheckBattery()
     if(((now - LastBatteryCheck) < 15000)&&(BatteryVolts != 0)) return;
   } else {
     if(((now - LastBatteryCheck) < 1000)&&(BatteryVolts != 0)) return;
-    
+
   }
   LastBatteryCheck=now;
   volts=analogRead(VPIN);
+
   //Computer.print("battery ");
   //Computer.println(volts);
-  //  Account for our resistors
-  //  to figure out the real voltage on the 12v line
-  volts=volts/2;
-  volts=volts*3;
-  //v=(float)volts/(float)100;
-  BatteryVolts=volts;
-  //Computer.println(volts);
+  // external resitors voltage divider divides the 12V input by 3
+  actualVolts = volts * 3 * (5.0 / 1023.0);
+
+  BatteryVolts= (int)(actualVolts*100); // we multiply by 100 to retain the decimal part
+
+  if( actualVolts<12.0f) {
+    blinkLowPwrLED = true;
+  }
+  else {
+    blinkLowPwrLED = false;
+  }
+
   if(BatteryVolts < CutoffVolts) {
     LowVoltCount++;
   } else {
@@ -1283,7 +1299,19 @@ void loop() {
         }
       }
     }
-      now=millis();
+    now=millis();
+    if(blinkLowPwrLED) {
+    	if ((now-last_blink) >= 100) {// 100 ms
+    		blink_delay++;
+    		if(blink_delay>9) { // blink for 100ms every second
+					digitalWrite(PWR_WARN, LOW);
+					blink_delay = 0;
+				} else {
+					digitalWrite(PWR_WARN, HIGH);
+				}
+			last_blink = now;
+    	}
+    }
     //  deal with rollovers of the millis return
     if(now < LastCommandTime) LastCommandTime=now;
     if(now-LastCommandTime > ShutterCommunicationTimeout) {
@@ -1292,7 +1320,7 @@ void loop() {
         //  Shutter is not closed
         if(!Shutter.Closing) {
           //  and it is not in the process of closing
-          //  so we need to close up 
+          //  so we need to close up
           if(Shutter.Active) {
             //  Shutter is in motion, stop it first
             Shutter.Stop();
