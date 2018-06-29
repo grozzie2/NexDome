@@ -1376,7 +1376,10 @@ int CheckBattery()
 
   volts=analogRead(VPIN);
   // external resitors voltage divider divides the 12V input by 3
-  actualVolts = volts * 3 * (5.0 / 1023.0);
+  //  we use a constant to ease the time spent doing floating point math.
+  // the converter does 0.0049V per unit :
+  //   3 * 0.0049 = 0.0147;
+  actualVolts = volts * 0.0147f;
   BatteryVolts = (int)(actualVolts*100); // we multiply by 100 to retain the decimal part
   return 0;
 }
