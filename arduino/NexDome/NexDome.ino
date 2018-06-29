@@ -29,7 +29,7 @@
 #include <EEPROM.h>
 
 #define VERSION_MAJOR 1
-#define VERSION_MINOR 10
+#define VERSION_MINOR 11
 
 /*
  *   Arduino pins
@@ -699,7 +699,7 @@ void setup() {
     //  the dome is at the home sensor now
     if(Dome.HomeAzimuth != 0) Dome.Sync(Dome.HomeAzimuth);
   }
-
+  CheckBattery();
 }
 
 
@@ -1372,14 +1372,15 @@ unsigned long int LastBatteryCheck=0;
 int CheckBattery()
 {
   int volts;
+  float actualVolts;
 
   volts=analogRead(VPIN);
-  //Computer.println(volts);
-  volts=volts/2;
-  volts=volts*3;
-  //v=(float)volts/(float)100;
-  BatteryVolts=volts;
-  //Computer.println(volts);
+  // external resitors voltage divider divides the 12V input by 3
+  //  we use a constant to ease the time spent doing floating point math.
+  // the converter does 0.0049V per unit :
+  //   3 * 0.0049 = 0.0147;
+  actualVolts = volts * 0.0147f;
+  BatteryVolts = (int)(actualVolts*100); // we multiply by 100 to retain the decimal part
   return 0;
 }
 

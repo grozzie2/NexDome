@@ -8,7 +8,7 @@ System ground is the ground lug on the 12V power plug.  Ground goes to
 - ENA- on the motor controller
 - GND on the arduino
 - GND side of both buttons
-- Ground end of the voltage divider 
+- Ground end of the voltage divider
 
 12V comes in on the 12V jack to the power bus.  The 12V power goes to
 
@@ -24,10 +24,10 @@ Arduino pins are wired as follows
 1 - Serial connection to XBee (internal to the board)
 2 - IRQ sensor (home sensor on rotator, open sensor for shutter)
 3 - IRQ sensor (unused on rotator, closed sensor for shutter)
-4 - Unused
+4 - low power LED.
 5 - Button
 6 - Button
-7 - Unused
+7 - RG-11
 8 - Reserved
 9 - Reserved
 10 - Motor Controller ENA+
